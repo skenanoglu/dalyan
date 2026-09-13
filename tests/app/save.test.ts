@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { defaultProfile, parseProfile } from '../../src/app/save';
 
 describe('kayıt', () => {
-  it('kayıt yoksa varsayılan profil: sadece kıyı açık', () => {
+  it('kayıt yoksa varsayılan profil: kıyı, kamış olta ve ekmek', () => {
     const p = parseProfile(null);
     expect(p).toEqual(defaultProfile());
     expect(p.zones).toEqual({ kiyi: true, bogaz: false, cukur: false, marmara: false });
-    expect(p.upgrades.tezgah).toBe(0);
+    expect(p.rod).toBe('kamis');
+    expect(p.bait).toBe('ekmek');
+    expect(Object.values(p.upgrades).every((lv) => lv === 0)).toBe(true);
   });
 
   it('bozuk kayıt varsayılana döner', () => {
@@ -15,43 +17,52 @@ describe('kayıt', () => {
     expect(parseProfile('"yazi"')).toEqual(defaultProfile());
   });
 
-  it('eksik alanlar doldurulur, geçersiz değerler temizlenir', () => {
+  it('eski sürüm alanları atılır, geçersiz değerler temizlenir', () => {
     const p = parseProfile(
       JSON.stringify({
+        v: 1,
         money: 1234.7,
-        character: 'kedi',
-        upgrades: { misina: 99, kova: -3 },
+        character: 'marti',
+        upgrades: { dalis: 99, nefes: -3, tezgah: 2, misina: 4 },
         zones: { bogaz: true, kiyi: false },
-        visited: { bogaz: true, cukur: true },
+        rods: { karbon: true, kamis: false, uzay: true },
+        rod: 'derin',
+        baits: { karides: true },
+        bait: 'karides',
         lastZone: 'marmara',
+        lastMode: 'uçak',
         logbook: { hamsi: { count: 5 }, yunus: { count: 2 }, lufer: { count: 0 } },
-        settings: { sound: 'evet' },
+        settings: { sound: 'evet', colorblind: true },
       }),
     );
     expect(p.money).toBe(1234);
-    expect(p.character).toBe('balik');
-    expect(p.upgrades.misina).toBe(6);
-    expect(p.upgrades.kova).toBe(0);
+    expect(p.upgrades).toEqual({ dalis: 4, nefes: 0, gaga: 0, simit: 0 });
+    expect(p).not.toHaveProperty('character');
     expect(p.zones.kiyi).toBe(true);
     expect(p.zones.bogaz).toBe(true);
-    expect(p.visited.bogaz).toBe(true);
-    // Açık olmayan bölgeye varılmış sayılmaz, kilitli bölge son bölge olamaz.
-    expect(p.visited.cukur).toBe(false);
+    expect(p.rods).toEqual({ kamis: true, bambu: false, karbon: true, makarali: false, derin: false });
+    // Sahip olunmayan olta seçilemez; sahip olunan yem seçilir.
+    expect(p.rod).toBe('kamis');
+    expect(p.bait).toBe('karides');
     expect(p.lastZone).toBe('kiyi');
+    expect(p.lastMode).toBe('olta');
     expect(p.logbook).toEqual({ hamsi: { count: 5 } });
-    expect(p.settings.sound).toBe(true);
+    expect(p.settings).toEqual({ sound: true, haptics: true });
   });
 
   it('kaydedilen profil aynen geri okunur', () => {
     const p = defaultProfile();
     p.money = 50;
-    p.character = 'marti';
     p.zones.bogaz = true;
-    p.visited.bogaz = true;
     p.lastZone = 'bogaz';
-    p.upgrades.misina = 2;
+    p.lastMode = 'marti';
+    p.rods.bambu = true;
+    p.rod = 'bambu';
+    p.baits.solucan = true;
+    p.bait = 'solucan';
+    p.upgrades.dalis = 2;
     p.logbook.lufer = { count: 3 };
-    p.settings.colorblind = true;
+    p.settings.sound = false;
     p.stats = { trips: 4, totalMoney: 900, totalFish: 41 };
     expect(parseProfile(JSON.stringify(p))).toEqual(p);
   });

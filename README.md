@@ -1,25 +1,25 @@
 # DALYAN
 
-Boğaz, Balık Avı ve Neon Rezonans'ın tek dünyada birleştiği oyun. Oyuncu DALYAN teknesinin sahibi:
+Boğaz'da balıkçılık oyunu. **Oyna:** https://skenanoglu.github.io/dalyan/
 
-**Liman → Yolculuk (Boğaz koşusu) → Av (olta) → Pazar (balık kasası bulmacası) → Liman**
+**Liman → Olta ya da Martı → Balık Pazarı → Liman**
 
-Tek kayıt, tek para. Plan: `~/.claude/plans/dalyan-birlesik-oyun.md`
+- 🎣 **Olta** (Balık Avı'ndan): tekneyle açıl, 90 saniye olta at. Küçük balıklar sığda, büyükler derinde.
+  Daha iyi olta daha derine iner; yemler sevdiği türleri çeker. Bölgeler (Sarayburnu → Marmara Dibi) balığın fiyatını artırır.
+- 🕊️ **Martı** (Boğaz'dan): uç, pike yapıp suya dal, balığı kap. Dalış yükseldikçe derindeki büyük balıklara ulaşır.
+  *(Şimdilik taslak; gerçek martı oyunu sıradaki adım.)*
+- 🐟 **Balık Pazarı:** her tür kendi fiyatıyla satılır, farklı tür sayısı arttıkça kazanç çarpanı büyür (×1.8'e kadar).
+  Çöp ceza yazar. Pazar kedisi en pahalı balığa göz diker: dokunup kovalamazsan bir tane kapar.
+- 🛒 **Dükkân:** oltalar, yemler, bölgeler ve martı yükseltmeleri (dalış, nefes, gaga, can simidi).
 
-## Durum
-- [x] Aşama 0: sahne sistemi, ortak kayıt, Liman (harita, bölge açma, defter), taslak sahnelerle uçtan uca sefer
-- [x] Aşama 1: Balık Pazarı — kasa bulmacası, türe göre parça şekli, toptan/ihracat, çöp ve joker, kedi/takas/karıştır, akşam indirimi
-- [ ] Aşama 2: Av (Balık Avı'nın dikey hâli)
-- [ ] Aşama 3: Yolculuk (Boğaz koşusu)
-- [ ] Aşama 4: Dükkân ve ekonomi dengesi
-- [ ] Aşama 5: Cila
+Plan: `~/.claude/plans/dalyan-birlesik-oyun.md`
 
 ## Çalıştırma
 ```bash
 npm install
 npm run dev -- --port 5185
 ```
-Telefondan aynı Wi-Fi'de terminalde yazan `Network` adresini aç.
+Telefondan aynı Wi-Fi'de terminalde yazan `Network` adresini aç. `main` dalına her push GitHub Pages'e test + derleme + yayın yapar.
 
 ```bash
 npm test
@@ -29,20 +29,16 @@ npm run build
 ## Hata ayıklama adresleri
 - `?sifirla` — kaydı sil
 - `?debug=1&para=5000` — parayı ayarla
-- `?sahne=liman|yolculuk|av|pazar` — tek sahneyi aç; sonucu ekranda gösterir
-  - `bolge=kiyi|bogaz|cukur|marmara`, `hedef=5`, `bonus=15`, `yem=3`, `seed=42`
+- `?sahne=liman|olta|marti|pazar` — tek sahneyi aç; sonucu ekranda gösterir
+  - `bolge=kiyi|bogaz|cukur|marmara`, `mod=olta|marti`, `seed=42`
   - `kova=hamsi:8,lufer:3,cizme:1` (pazar için)
-
-## Balık Pazarı kuralları (`src/scenes/market/core/rules.ts`)
-- Kovadaki her balık bir parça; en az 20 parça (eksikse yarı fiyatına toptancı hamsisi).
-- Balığın değeri parçanın kasalarına bölünür. Dolu sıra ×1, toptan (8+ kasa, en az 2 balık) ×2, ihracat (14+) ×3 ve çevresi ×1.
-- Altın balık her türün kümesine katılır; çöp kümeye girmez, tahtada kalırsa ceza.
-- Pazar kapanınca tahtada, elde ve bantta kalanlar yarı fiyata satılır.
-- Geliştirme modunda konsolda `__market` (state, layout, act) vardır.
+- Geliştirme modunda konsolda `__fishing` (`world`, `controls`): `world.update(1/60, girdi)` ile adım adım oynatılabilir.
 
 ## Yapı
-- `src/app/` — kabuk: sahne sözleşmesi (`scene.ts`), geçişler (`app.ts`), sefer akışı (`flow.ts`),
-  kayıt (`save.ts`), tür/bölge/yükseltme tabloları, ilerleme hesapları (`progress.ts`).
-- `src/scenes/<sahne>/scene.ts` — her sahne `(kök, girdi, app) → { done, destroy }` döner.
-  Taslak sahneler aynı sözleşmeyle gerçek oyunlarla değiştirilecek.
+- `src/app/` — kabuk: sahne sözleşmesi (`scene.ts`), geçişler (`app.ts`), akış (`flow.ts`), kayıt (`save.ts`),
+  tür/bölge/olta-yem/yükseltme tabloları, satış ve dükkân hesapları (`progress.ts`).
+- `src/scenes/harbor` — Liman: oyna, dükkân, defter.
+- `src/scenes/fishing` — olta oyunu: `world.ts` saf mantık (test edilir), `draw.ts` çizim, `controls.ts` dokunmatik/klavye.
+- `src/scenes/gull` — martı (taslak).
+- `src/scenes/market` — pazar fişi ve kedi.
 - `tests/` — vitest.

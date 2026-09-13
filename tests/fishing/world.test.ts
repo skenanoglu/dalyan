@@ -1,0 +1,129 @@
+import { describe, expect, it } from 'vitest';
+import { Rng } from '../../src/app/rng';
+import { FishingWorld, HOOK_TOP, SURFACE, type Input, type WorldOptions } from '../../src/scenes/fishing/world';
+import { TYPES } from '../../src/scenes/fishing/data';
+
+const idle: Input = { left: false, right: false, up: false, down: false };
+const down: Input = { ...idle, down: true };
+const STEP = 1 / 60;
+
+function make(extra: Partial<WorldOptions> = {}): FishingWorld {
+  const rng = new Rng(7);
+  return new FishingWorld({
+    zone: 'kiyi',
+    viewHeight: 900,
+    misinaM: 12,
+    inisHizi: 190,
+    makara: 1,
+    bonusSeconds: 0,
+    baitLikes: [],
+    random: () => rng.next(),
+    ...extra,
+  });
+}
+
+function run(w: FishingWorld, seconds: number, input: Input = idle): void {
+  const n = Math.round(seconds / STEP);
+  for (let i = 0; i < n; i++) w.update(STEP, input);
+}
+
+/** Balıksız, yeni balık doğmayan dünya. */
+function empty(extra: Partial<WorldOptions> = {}): FishingWorld {
+  const w = make(extra);
+  w.fishes = [];
+  w.spawnTimer = 1e9;
+  return w;
+}
+
+function putAtHook(w: FishingWorld, key: string): void {
+  const t = TYPES.find((x) => x.key === key)!;
+  w.fishes.push({ t, x: w.hook.x, y: w.hook.y, baseY: w.hook.y, dir: 1, speed: 0, phase: 0, caught: false, cool: 0 });
+}
+
+describe('av dünyası', () => {
+  it('dikey ekranda kıyı en az ekranı doldurur; derin bölge kendi derinliğini korur', () => {
+    expect(make({ viewHeight: 900 }).tabanY).toBe(SURFACE + 650);
+    expect(make({ viewHeight: 500 }).tabanY).toBe(SURFACE + 380);
+    expect(make({ zone: 'marmara', viewHeight: 900 }).tabanY).toBe(SURFACE + 2100);
+  });
+
+  it('süre varış bonusuyla uzar; bitince av kapanır', () => {
+    const w = make({ bonusSeconds: 15 });
+    w.start();
+    expect(w.timeLeft).toBe(105);
+    run(w, 106);
+    expect(w.over).toBe(true);
+    expect(w.events).toContain('end');
+  });
+
+  it('olta kurşun hızıyla iner ve misina sınırında durur', () => {
+    const w = empty({ misinaM: 12 });
+    run(w, 0.5, down);
+    expect(w.hook.y).toBeCloseTo(HOOK_TOP + 95, 3);
+    run(w, 10, down);
+    expect(w.hook.y).toBeCloseTo(SURFACE + 12 * w.pxMetre, 3);
+    expect(w.hookHasEntered).toBe(true);
+  });
+
+  it('takılan balık çekilince para değil kovaya girer', () => {
+    const w = empty();
+    run(w, 0.6, down);
+    putAtHook(w, 'lufer');
+    w.update(STEP, idle);
+    expect(w.hook.fish?.t.key).toBe('lufer');
+    run(w, 5);
+    expect(w.catch).toEqual({ lufer: 1 });
+    expect(w.events).toEqual(expect.arrayContaining(['catch', 'score']));
+  });
+
+  it('çöp de kovaya girer (pazarda ceza olur)', () => {
+    const w = empty();
+    run(w, 0.6, down);
+    putAtHook(w, 'cizme');
+    run(w, 5);
+    expect(w.catch).toEqual({ cizme: 1 });
+    expect(w.events).toContain('bad');
+  });
+
+  it('boş oltaya köpekbalığı çarparsa misina kopar: -5 sn', () => {
+    const w = empty();
+    run(w, 0.6, down);
+    const before = w.timeLeft;
+    putAtHook(w, 'kopekbaligi');
+    w.update(STEP, idle);
+    expect(before - w.timeLeft).toBeCloseTo(5 + STEP, 3);
+    expect(w.hook.y).toBe(HOOK_TOP);
+  });
+
+  it('süre biterken oltadaki balık kaçar', () => {
+    const w = empty();
+    run(w, 0.6, down);
+    putAtHook(w, 'kalkan');
+    w.update(STEP, idle);
+    expect(w.hook.fish).not.toBeNull();
+    w.timeLeft = 0.001;
+    w.update(STEP, idle);
+    expect(w.over).toBe(true);
+    expect(w.hook.fish).toBeNull();
+    expect(w.catch).toEqual({});
+  });
+
+  it('yem sevdiği türleri daha sık getirir', () => {
+    const share = (baitLikes: WorldOptions['baitLikes']): number => {
+      const w = make({ zone: 'bogaz', misinaM: 40, baitLikes });
+      for (let i = 0; i < 3000; i++) w.spawnFish(true);
+      const fish = w.fishes.filter((f) => f.t.species && !f.t.junk);
+      return fish.filter((f) => f.t.key === 'lufer' || f.t.key === 'palamut').length / fish.length;
+    };
+    expect(share(['lufer', 'palamut'])).toBeGreaterThan(share([]) + 0.1);
+  });
+
+  it('yalnızca bölgenin derinliğindeki türler doğar', () => {
+    const w = make({ zone: 'kiyi', viewHeight: 5000 });
+    for (let i = 0; i < 2000; i++) w.spawnFish(true);
+    const keys = new Set(w.fishes.map((f) => f.t.key));
+    expect(keys.has('hamsi')).toBe(true);
+    expect(keys.has('kalkan')).toBe(false);
+    expect(keys.has('fener')).toBe(false);
+  });
+});

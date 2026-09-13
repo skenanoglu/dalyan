@@ -1,25 +1,22 @@
-import type { SpeciesId } from './types';
-
-/** neon-rezonans şekil kimlikleriyle aynı. */
-export type CrateShape = 'dot' | 'i2' | 'corner' | 'o2' | 'i3' | 'l4' | 'j4' | 't4' | 's4' | 'z4' | 'o3' | 'i5' | 'plus';
+import type { ModeId, SpeciesId } from './types';
 
 export interface Species {
   id: SpeciesId;
   name: string;
-  /** Kasa başına taban fiyat (₺). Çöpte negatif = ceza. */
+  /** Pazarda tane fiyatı (₺). Çöpte negatif = ceza. */
   price: number;
-  /** Bulunduğu derinlik aralığı (metre). */
+  /** Olta için yaşadığı derinlik aralığı (metre). Küçük balık sığda, büyük balık derinde. */
   depth: [number, number];
-  /** Avda görülme ağırlığı. */
+  /** Görülme ağırlığı. */
   weight: number;
   junk: boolean;
-  /** Altın balık: her türün kümesine katılır. */
+  /** Altın balık: nadir ve değerli. */
   joker: boolean;
-  /** Pazardaki neon kasa rengi. */
+  /** Martının pikeyle ulaşması gereken derinlik (px); martı tutamıyorsa null. */
+  gullDepth: number | null;
+  /** Arayüzde türün rengi. */
   color: string;
-  /** Pazarda bu balığın parça şekli adayları. */
-  shapes: CrateShape[];
-  /** Balık Avı'ndaki gövde renkleri (silüet çizimi için). */
+  /** Balık Avı'ndaki gövde renkleri. */
   body: string;
   belly: string;
   fin: string;
@@ -30,30 +27,30 @@ type Row = [
   price: number,
   depth: [number, number],
   weight: number,
+  gullDepth: number | null,
   color: string,
-  shapes: CrateShape[],
   body: string,
   belly: string,
   fin: string,
   flags?: { junk?: boolean; joker?: boolean },
 ];
 
-// Değerler Balık Avı'nın TYPES tablosundan (BalikAvi/js/veri.js) alındı.
+// Fiyat, derinlik ve ağırlıklar Balık Avı'nın TYPES tablosundan (BalikAvi/js/veri.js).
 const ROWS: Record<SpeciesId, Row> = {
-  hamsi: ['Hamsi', 10, [0, 7], 5, '#1fd8f5', ['dot'], '#7fa7c0', '#e6f2f8', '#5f879f'],
-  istavrit: ['İstavrit', 15, [2, 12], 4, '#4d7cff', ['i2'], '#8fa9bd', '#eaf4fa', '#6d8ba0'],
-  cipura: ['Çipura', 20, [3, 14], 3.6, '#5dffb0', ['corner'], '#aeb9c2', '#eef2f4', '#87949e'],
-  palyaco: ['Palyaço Balığı', 25, [6, 16], 2.2, '#ff8a2a', ['o2'], '#ff7b1c', '#ffa65c', '#e05a00'],
-  levrek: ['Levrek', 30, [8, 22], 3, '#9b6bff', ['i3'], '#62798a', '#d5dde3', '#4d6272'],
-  altin: ['Altın Balık', 100, [13, 21], 0.7, '#ffd23f', ['dot'], '#ffcf33', '#fff1a8', '#f0a000', { joker: true }],
-  lufer: ['Lüfer', 45, [12, 30], 2.6, '#ff3ea5', ['l4', 'j4'], '#7e93a6', '#e8eef3', '#5d7182'],
-  mezgit: ['Mezgit', 55, [20, 40], 2.2, '#e0b878', ['t4'], '#b9a07c', '#f0e6d2', '#95805f'],
-  palamut: ['Palamut', 70, [25, 50], 2, '#ff4b4b', ['s4', 'z4'], '#5d7f96', '#e2ecf2', '#456478'],
-  kalkan: ['Kalkan', 120, [35, 70], 1.6, '#c6ff3d', ['o3'], '#8c7d5e', '#d8cdb0', '#6d6046'],
-  kilic: ['Kılıç Balığı', 200, [45, 90], 1.1, '#d8e6ff', ['i5'], '#4f6d86', '#dce8f0', '#39566d'],
-  fener: ['Fener Balığı', 350, [70, 110], 0.9, '#f0abfc', ['plus'], '#3c3350', '#5b4f73', '#2a2439'],
-  cizme: ['Eski Çizme', -5, [5, 25], 1.2, '#7b8794', ['dot'], '#5a4636', '#6b5543', '#3f3126', { junk: true }],
-  naylon: ['Naylon Poşet', -8, [3, 60], 1.1, '#7b8794', ['dot'], '#d9e2e8', '#f2f6f8', '#b8c4cc', { junk: true }],
+  hamsi: ['Hamsi', 10, [0, 7], 5, 10, '#1fd8f5', '#7fa7c0', '#e6f2f8', '#5f879f'],
+  istavrit: ['İstavrit', 15, [2, 12], 4, 20, '#4d7cff', '#8fa9bd', '#eaf4fa', '#6d8ba0'],
+  cipura: ['Çipura', 20, [3, 14], 3.6, 35, '#5dffb0', '#aeb9c2', '#eef2f4', '#87949e'],
+  palyaco: ['Palyaço Balığı', 25, [6, 16], 2.2, 45, '#ff8a2a', '#ff7b1c', '#ffa65c', '#e05a00'],
+  levrek: ['Levrek', 30, [8, 22], 3, 60, '#9b6bff', '#62798a', '#d5dde3', '#4d6272'],
+  altin: ['Altın Balık', 100, [13, 21], 0.7, 100, '#ffd23f', '#ffcf33', '#fff1a8', '#f0a000', { joker: true }],
+  lufer: ['Lüfer', 45, [12, 30], 2.6, 85, '#ff3ea5', '#7e93a6', '#e8eef3', '#5d7182'],
+  mezgit: ['Mezgit', 55, [20, 40], 2.2, null, '#e0b878', '#b9a07c', '#f0e6d2', '#95805f'],
+  palamut: ['Palamut', 70, [25, 50], 2, 130, '#ff4b4b', '#5d7f96', '#e2ecf2', '#456478'],
+  kalkan: ['Kalkan', 120, [35, 70], 1.6, null, '#c6ff3d', '#8c7d5e', '#d8cdb0', '#6d6046'],
+  kilic: ['Kılıç Balığı', 200, [45, 90], 1.1, null, '#d8e6ff', '#4f6d86', '#dce8f0', '#39566d'],
+  fener: ['Fener Balığı', 350, [70, 110], 0.9, null, '#f0abfc', '#3c3350', '#5b4f73', '#2a2439'],
+  cizme: ['Eski Çizme', -5, [5, 25], 1.2, null, '#7b8794', '#5a4636', '#6b5543', '#3f3126', { junk: true }],
+  naylon: ['Naylon Poşet', -8, [3, 60], 1.1, 15, '#7b8794', '#d9e2e8', '#f2f6f8', '#b8c4cc', { junk: true }],
 };
 
 export const SPECIES_ORDER: SpeciesId[] = [
@@ -75,15 +72,15 @@ export const SPECIES_ORDER: SpeciesId[] = [
 
 export const SPECIES = Object.fromEntries(
   SPECIES_ORDER.map((id) => {
-    const [name, price, depth, weight, color, shapes, body, belly, fin, flags] = ROWS[id];
+    const [name, price, depth, weight, gullDepth, color, body, belly, fin, flags] = ROWS[id];
     const s: Species = {
       id,
       name,
       price,
       depth,
       weight,
+      gullDepth,
       color,
-      shapes,
       body,
       belly,
       fin,
@@ -94,7 +91,7 @@ export const SPECIES = Object.fromEntries(
   }),
 ) as Record<SpeciesId, Species>;
 
-/** Bu fiyat ve üstü nadir sayılır; yem bunların şansını artırır. */
+/** Bu fiyat ve üstü nadir sayılır. */
 export const RARE_PRICE = 45;
 
 export const isSpeciesId = (v: string): v is SpeciesId => v in SPECIES;
@@ -102,4 +99,14 @@ export const isSpeciesId = (v: string): v is SpeciesId => v in SPECIES;
 /** Oltanın inebildiği derinlikte görülebilen türler. */
 export function speciesInReach(maxDepth: number): Species[] {
   return SPECIES_ORDER.map((id) => SPECIES[id]).filter((s) => s.depth[0] <= maxDepth);
+}
+
+/** Bu yolla (en iyi donanımla) yakalanabilen türler. */
+export function speciesFor(mode: ModeId): Species[] {
+  return SPECIES_ORDER.map((id) => SPECIES[id]).filter((s) => mode === 'olta' || s.gullDepth !== null);
+}
+
+/** Martının verilen dalış derinliğiyle (px) ulaşabildiği türler. */
+export function gullReach(dive: number): Species[] {
+  return SPECIES_ORDER.map((id) => SPECIES[id]).filter((s) => s.gullDepth !== null && s.gullDepth <= dive);
 }

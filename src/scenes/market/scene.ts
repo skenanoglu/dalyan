@@ -1,290 +1,173 @@
 import './market.css';
 import { deferred, onAction, type SceneFactory } from '../../app/scene';
-import type { MarketIn, MarketOut, SpeciesId } from '../../app/types';
-import { SPECIES, SPECIES_ORDER } from '../../app/species';
-import { money } from '../../app/format';
-import { dispatch, getPiece, liveEarnings, marketOut, newMarket, piecesLeft } from './core/market';
-import { POWER_COST, WHOLESALE_MIN, charges } from './core/rules';
-import type { Action, Coord, MarketEvent, PowerId, Source } from './core/types';
-import { computeLayout, type Layout } from './render/layout';
-import { Renderer } from './render/renderer';
-import { Fx, centroidOf } from './render/fx';
-import { shade } from './render/sprites';
-import { attachPointer, type DragView, type Mode } from './input';
-import { Hud } from './hud';
-import { Sfx } from './sfx';
+import type { Catch, MarketIn, MarketOut, SpeciesId } from '../../app/types';
+import { SPECIES } from '../../app/species';
+import { ZONES } from '../../app/zones';
+import { MODE_NAMES } from '../../app/modes';
+import { VARIETY_MAX, sellCatch, varietyMultiplier } from '../../app/progress';
+import { money, signedMoney } from '../../app/format';
 
-const GOLD = '#ffd23f';
-const INK = '#eef4ff';
+const times = (v: number): string => `×${v.toFixed(1)}`;
 
-/** Karaköy Gece Pazarı: kovadaki balıklar kasa olarak tezgâha dizilir ve satılır. */
-export const marketScene: SceneFactory<MarketIn, MarketOut> = (root, input, app) => {
+/** Kedinin gelme olasılığı ve hedefe varma süresi. */
+const CAT_CHANCE = 0.7;
+const CAT_WALK_MS = 2600;
+
+/** Kedinin hedefi: en değerli balık satırı. */
+export function catTarget(sale: MarketOut): SpeciesId | null {
+  const fish = sale.lines.filter((l) => l.total > 0);
+  if (fish.length === 0) return null;
+  return fish.reduce((a, b) => (b.price > a.price ? b : a)).sp;
+}
+
+/** Kedi bir balık çalınca kalan kova. */
+export function afterTheft(c: Catch, sp: SpeciesId): Catch {
+  const next = { ...c };
+  const n = (next[sp] ?? 0) - 1;
+  if (n > 0) next[sp] = n;
+  else delete next[sp];
+  return next;
+}
+
+/** Karaköy Balık Pazarı: kova türlerine göre satılır, çeşit arttıkça kazanç çarpanı büyür. Kedi fırsat kollar. */
+export const marketScene: SceneFactory<MarketIn, MarketOut> = (root, input) => {
   const { promise, resolve } = deferred<MarketOut>();
-  const settings = app.profile.settings;
-  root.classList.add('fixed', 'night');
-
-  let state = newMarket(input);
-  const hud = new Hud(root);
-  const ctx = hud.canvas.getContext('2d')!;
-  const fx = new Fx();
-  const renderer = new Renderer();
-  const sfx = new Sfx();
-  fx.colorblind = settings.colorblind;
-  renderer.colorblind = settings.colorblind;
-  sfx.enabled = settings.sound;
-
-  let layout: Layout = computeLayout(320, 480, 1, state.size, state.holds.length);
-  let drag: DragView | null = null;
-  let mode: Mode = 'play';
-  let swapSrc: Source | null = null;
-  let hover: { x: number; y: number } | null = null;
-  let alive = true;
-  let finished = false;
-  let raf = 0;
+  const where = input.mode === 'olta' ? `${MODE_NAMES.olta} · ${ZONES[input.zone].name}` : `${MODE_NAMES.marti} · Boğaz`;
+  let caught: Catch = { ...input.catch };
+  let sale = sellCatch(caught, input.mode, input.zone);
   const timers: number[] = [];
+  let raf = 0;
+  let catState: 'none' | 'walking' | 'gone' = 'none';
 
-  const haptic = (ms: number): void => {
-    if (settings.haptics && typeof navigator.vibrate === 'function') navigator.vibrate(ms);
+  const receipt = (animate: boolean): string => {
+    const rows = sale.lines
+      .map((l, i) => {
+        const s = SPECIES[l.sp];
+        return `
+          <li class="${l.total < 0 ? 'junk' : ''}" data-sp="${l.sp}" style="--i:${animate ? i : 0}">
+            <i style="--c:${s.color}"></i>
+            <span>${s.name}<small>${l.count} × ${money(Math.abs(l.price))}</small></span>
+            <b>${signedMoney(l.total)}</b>
+          </li>`;
+      })
+      .join('');
+    const next = varietyMultiplier(sale.varieties + 1);
+    const tip =
+      sale.varieties === 0
+        ? 'Kova boş kaldı. Bir dahaki sefere!'
+        : sale.multiplier < VARIETY_MAX
+          ? `Bir çeşit daha getirseydin çarpan ${times(next)} olurdu.`
+          : 'En yüksek çeşit bonusu! Tebrikler.';
+    const d = animate ? sale.lines.length : 0;
+    return `
+      ${rows ? `<ul class="receipt">${rows}</ul>` : '<p class="bz-empty">Tezgâh boş.</p>'}
+      <div class="bz-totals" style="--i:${d}">
+        <span>Balıklar</span><b>${money(sale.base)}</b>
+        <span>Çeşit bonusu <small>${sale.varieties} tür · ${times(sale.multiplier)}</small></span><b class="pos">+${money(sale.bonus)}</b>
+        ${sale.penalty > 0 ? `<span>Çöp cezası</span><b class="neg">−${money(sale.penalty)}</b>` : ''}
+        <span class="total">Kazanç</span><b class="total" data-el="earned">${money(animate ? 0 : sale.earned)}</b>
+      </div>
+      <p class="bz-tip" style="--i:${d + 1}">${tip}</p>`;
   };
 
-  const refresh = (): void => {
-    hud.setEarnings(liveEarnings(state));
-    hud.setLeft(piecesLeft(state));
-    hud.setCombo(state.combo);
-    hud.setEnergy(state.energy);
-    hud.setPowers(state.energy, mode, state.status === 'rescue');
+  root.innerHTML = `
+    <div class="bazaar">
+      <header class="bz-head">
+        <h2>Karaköy Balık Pazarı</h2>
+        <p>${where}</p>
+      </header>
+      <div class="bz-body" data-el="body">${receipt(true)}</div>
+      <p class="bz-cat-note" data-el="note" hidden></p>
+      <button class="btn primary bz-done" data-act="done" style="--i:${sale.lines.length + 1}">Limana Dön</button>
+      <button class="bz-cat" data-act="shoo" aria-label="Kediyi kovala" hidden>🐈</button>
+    </div>`;
+
+  const el = (name: string): HTMLElement => root.querySelector(`[data-el="${name}"]`) as HTMLElement;
+  const doneBtn = root.querySelector('[data-act="done"]') as HTMLButtonElement;
+  const cat = root.querySelector('.bz-cat') as HTMLButtonElement;
+
+  const countUp = (from: number, delay: number): void => {
+    const earnedEl = el('earned');
+    const startAt = performance.now() + delay;
+    cancelAnimationFrame(raf);
+    const step = (now: number): void => {
+      const k = Math.max(0, Math.min(1, (now - startAt) / 900));
+      earnedEl.textContent = money(from + (sale.earned - from) * (1 - (1 - k) ** 3));
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+  };
+  countUp(0, sale.lines.length * 90 + 250);
+
+  const note = (text: string): void => {
+    const n = el('note');
+    n.textContent = text;
+    n.hidden = false;
   };
 
-  const setMode = (next: Mode): void => {
-    mode = next;
-    hover = null;
-    refresh();
+  // ---------- Kedi ----------
+  const target = catTarget(sale);
+  const startCat = (): void => {
+    if (!target) return;
+    const row = root.querySelector<HTMLElement>(`li[data-sp="${target}"]`);
+    if (!row) return;
+    catState = 'walking';
+    doneBtn.disabled = true;
+    const box = root.querySelector('.bazaar') as HTMLElement;
+    const rowTop = row.offsetTop + row.offsetHeight / 2 - 22;
+    cat.style.top = `${rowTop}px`;
+    cat.style.left = '-56px';
+    cat.hidden = false;
+    note(`🐈 Bir kedi ${SPECIES[target].name} kokusunu aldı! Dokun, kovala!`);
+    // Bir kare sonra hedefe yürümeye başlasın ki geçiş animasyonu çalışsın.
+    requestAnimationFrame(() => {
+      cat.style.transition = `left ${CAT_WALK_MS}ms linear`;
+      cat.style.left = `${Math.max(40, box.clientWidth - 90)}px`;
+    });
+    timers.push(
+      window.setTimeout(() => {
+        if (catState !== 'walking') return;
+        catState = 'gone';
+        caught = afterTheft(caught, target);
+        const before = sale.earned;
+        sale = sellCatch(caught, input.mode, input.zone);
+        el('body').classList.add('still');
+        el('body').innerHTML = receipt(false);
+        countUp(before, 0);
+        cat.classList.add('run');
+        note(`Kedi 1 ${SPECIES[target].name} kaptı ve kaçtı!`);
+        doneBtn.disabled = false;
+        timers.push(window.setTimeout(() => (cat.hidden = true), 700));
+      }, CAT_WALK_MS),
+    );
   };
-
-  const handle = (events: MarketEvent[]): void => {
-    let from: Coord = { x: state.size / 2, y: state.size / 2 };
-    for (const e of events) {
-      switch (e.type) {
-        case 'placed':
-          from = centroidOf(e.cells);
-          fx.popCells(e.cells);
-          sfx.place();
-          haptic(10);
-          break;
-        case 'rotated':
-          renderer.noteRotate(e.uid);
-          sfx.rotate();
-          haptic(6);
-          break;
-        case 'lines':
-          fx.lineClear(e.cells, from);
-          sfx.lineClear(state.combo);
-          haptic(18);
-          break;
-        case 'wholesale': {
-          fx.burst(e.cells, e.export);
-          sfx.wholesale(SPECIES_ORDER.indexOf(e.sp), e.export);
-          const at = centroidOf(e.cells);
-          const label = e.export ? 'İHRACAT KAMYONU!' : 'TOPTAN SATIŞ!';
-          fx.text(label, { x: at.x, y: at.y - 0.6 }, shade(SPECIES[e.sp].color, 0.5), e.export ? 1.1 : 0.95);
-          haptic(e.export ? 60 : 30);
-          break;
-        }
-        case 'ring':
-          fx.ring(e.cells);
-          break;
-        case 'sale':
-          fx.text(`+${money(e.amount)}`, { x: e.at.x, y: e.at.y + 0.7 }, GOLD, 0.85);
-          sfx.coin();
-          break;
-        case 'boardClear':
-          fx.text('TEZGÂH BOŞALDI!', { x: state.size / 2, y: state.size / 2 }, INK, 1.05);
-          haptic(50);
-          break;
-        case 'energy':
-          if (e.chargedUp) sfx.charge();
-          break;
-        case 'cat':
-          fx.single(e.cell);
-          sfx.power();
-          haptic(20);
-          break;
-        case 'swap':
-        case 'shuffle':
-        case 'held':
-          sfx.power();
-          break;
-        case 'rescue':
-          mode = 'play';
-          hud.show('rescue');
-          break;
-        case 'closed': {
-          mode = 'play';
-          drag = null;
-          sfx.close();
-          const out = marketOut(state);
-          const reason = e.reason;
-          timers.push(window.setTimeout(() => hud.showSummary(out, reason), 650));
-          break;
-        }
-        default:
-          break;
-      }
-    }
-  };
-
-  const act = (a: Action): boolean => {
-    const r = dispatch(state, a);
-    if (!r.ok) {
-      sfx.invalid();
-      return false;
-    }
-    state = r.state;
-    handle(r.events);
-    refresh();
-    return true;
-  };
-
-  const usePower = (p: PowerId): void => {
-    if (state.status === 'closed') return;
-    if (charges(state.energy) < POWER_COST[p]) {
-      sfx.invalid();
-      return;
-    }
-    if (p === 'shuffle') {
-      act({ type: 'shuffle' });
-      return;
-    }
-    if (p === 'cat') {
-      const on = mode !== 'cat';
-      setMode(on ? 'cat' : 'play');
-      hud.toast(on ? 'Kedinin kapacağı kasaya dokun' : '');
-      return;
-    }
-    const on = mode !== 'swap';
-    swapSrc = null;
-    setMode(on ? 'swap' : 'play');
-    hud.toast(on ? 'Takas edeceğin balığa dokun' : '');
-  };
-
-  const offAction = onAction(root, (a, arg) => {
-    switch (a) {
-      case 'power':
-        usePower(arg as PowerId);
-        break;
-      case 'ask-close':
-        if (state.status !== 'closed') hud.show('confirm');
-        break;
-      case 'confirm-close':
-        hud.hide();
-        act({ type: 'close' });
-        break;
-      case 'cancel':
-        hud.hide();
-        swapSrc = null;
-        setMode('play');
-        break;
-      case 'use-power':
-        hud.hide();
-        hud.toast('Kedi bir kasayı kapsın ya da bandı karıştır', 4000);
-        break;
-      case 'swap-to': {
-        const src = swapSrc;
-        swapSrc = null;
-        hud.hide();
-        setMode('play');
-        if (src) act({ type: 'swap', src, sp: arg as SpeciesId });
-        break;
-      }
-      case 'finish':
-        if (!finished) {
-          finished = true;
-          resolve(marketOut(state));
-        }
-        break;
-      default:
-        break;
-    }
-  });
-
-  const detachPointer = attachPointer(hud.canvas, {
-    state: () => state,
-    layout: () => layout,
-    mode: () => mode,
-    enabled: () => state.status !== 'closed' && !hud.overlayOpen,
-    onRotate: (src) => act({ type: 'rotate', src }),
-    onPlace: (src, x, y) => act({ type: 'place', src, x, y }),
-    onHold: (slot, hold) => act({ type: 'hold', slot, hold }),
-    onBoardTap: (x, y) => {
-      if (mode !== 'cat') return;
-      if (!state.board[y * state.size + x]) {
-        sfx.invalid();
-        return;
-      }
-      act({ type: 'cat', x, y });
-      setMode('play');
-      hud.toast('');
-    },
-    onPickPiece: (src) => {
-      const p = getPiece(state, src);
-      if (!p) return;
-      if (!state.species.some((sp) => sp !== p.sp)) {
-        hud.toast('Takas için pazarda başka tür yok');
-        return;
-      }
-      swapSrc = src;
-      hud.showSwap(state.species, p.sp);
-    },
-    onDrag: (d) => {
-      drag = d;
-    },
-    onHover: (cell) => {
-      hover = cell;
-    },
-  });
-
-  const resize = (): void => {
-    const rect = hud.stage.getBoundingClientRect();
-    const dpr = Math.min(3, window.devicePixelRatio || 1);
-    hud.canvas.width = Math.max(2, Math.round(rect.width * dpr));
-    hud.canvas.height = Math.max(2, Math.round(rect.height * dpr));
-    layout = computeLayout(hud.canvas.width, hud.canvas.height, dpr, state.size, state.holds.length);
-  };
-  const ro = new ResizeObserver(resize);
-  ro.observe(hud.stage);
-  resize();
-
-  let last = performance.now();
-  const frame = (now: number): void => {
-    if (!alive) return;
-    const dt = Math.min(0.05, (now - last) / 1000);
-    last = now;
-    fx.update(dt);
-    renderer.draw(ctx, layout, { state, drag, mode, hover }, fx, dt, now / 1000);
-    raf = requestAnimationFrame(frame);
-  };
-  raf = requestAnimationFrame(frame);
-
-  // Geliştirme sırasında tarayıcı konsolundan durum okumak ve test etmek için.
-  if (import.meta.env.DEV) {
-    (window as unknown as { __market?: object }).__market = { state: () => state, layout: () => layout, act };
+  if (target && Math.random() < CAT_CHANCE) {
+    timers.push(window.setTimeout(startCat, sale.lines.length * 90 + 900));
   }
 
-  refresh();
-  hud.toast(`Aynı türden ${WHOLESALE_MIN} kasa (en az 2 balık) yan yana gelince toptan satılır`, 4500);
+  let done = false;
+  const off = onAction(root, (act) => {
+    if (act === 'shoo' && catState === 'walking') {
+      catState = 'gone';
+      const left = cat.getBoundingClientRect().left - (root.querySelector('.bazaar') as HTMLElement).getBoundingClientRect().left;
+      cat.style.transition = 'none';
+      cat.style.left = `${left}px`;
+      cat.classList.add('shoo');
+      note('Kediyi kovaladın, balıklar güvende!');
+      doneBtn.disabled = false;
+      timers.push(window.setTimeout(() => (cat.hidden = true), 600));
+    } else if (act === 'done' && !done && catState !== 'walking') {
+      done = true;
+      resolve(sale);
+    }
+  });
 
   return {
     done: promise,
     destroy: () => {
-      alive = false;
       cancelAnimationFrame(raf);
-      ro.disconnect();
-      detachPointer();
-      offAction();
-      hud.dispose();
       for (const t of timers) window.clearTimeout(t);
-      sfx.dispose();
-      root.classList.remove('fixed', 'night');
+      off();
     },
   };
 };

@@ -1,20 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { catchCount, parseCatch } from '../../src/app/catch';
-import { RARE_PRICE, SPECIES, speciesInReach } from '../../src/app/species';
+import { SPECIES, gullReach, speciesFor, speciesInReach } from '../../src/app/species';
 import { defaultUpgrades } from '../../src/app/upgrades';
 import { fakeCatch } from '../../src/scenes/fishing/fake';
-import type { FishingIn } from '../../src/app/types';
+import { fakeGullCatch } from '../../src/scenes/gull/fake';
+import type { FishingIn, SpeciesId } from '../../src/app/types';
 
 const input = (extra: Partial<FishingIn> = {}): FishingIn => ({
   zone: 'kiyi',
-  upgrades: defaultUpgrades(),
-  bonusSeconds: 0,
-  bait: 0,
+  rod: 'kamis',
+  bait: 'ekmek',
   seed: 1,
   ...extra,
 });
 
-describe('kova', () => {
+describe('kova ve türler', () => {
   it('debug kova metnini okur, bilinmeyenleri atlar', () => {
     expect(parseCatch('hamsi:8, lufer:3,yunus:2,cizme:x,hamsi:1')).toEqual({ hamsi: 9, lufer: 3 });
     expect(parseCatch('')).toBeNull();
@@ -26,41 +26,57 @@ describe('kova', () => {
     expect(catchCount({ hamsi: 3, naylon: 2 }, true)).toBe(5);
   });
 
-  it('oltanın ulaştığı türler derinliğe göre', () => {
-    const ids = speciesInReach(12).map((s) => s.id);
-    expect(ids).toContain('lufer');
-    expect(ids).not.toContain('mezgit');
+  it('olta: küçük balık sığda, büyük balık derinde', () => {
+    const reach = speciesInReach(12).map((s) => s.id);
+    expect(reach).toContain('hamsi');
+    expect(reach).not.toContain('kalkan');
     expect(speciesInReach(110)).toHaveLength(14);
+  });
+
+  it('martı: dalış derinleştikçe büyük balıklar açılır; en derin türleri hiç tutamaz', () => {
+    expect(gullReach(30).map((s) => s.id).sort()).toEqual(['hamsi', 'istavrit', 'naylon']);
+    expect(gullReach(160).map((s) => s.id)).toEqual(expect.arrayContaining(['levrek', 'lufer', 'palamut', 'altin']));
+    const gull = speciesFor('marti').map((s) => s.id);
+    for (const deep of ['mezgit', 'kalkan', 'kilic', 'fener', 'cizme'] as SpeciesId[]) expect(gull).not.toContain(deep);
   });
 });
 
-describe('geçici sahte av', () => {
-  it('aynı seed aynı kovayı verir', () => {
+describe('sahte avlar (test ve debug)', () => {
+  it('olta: aynı seed aynı kova; kamış olta derin türleri getirmez', () => {
     expect(fakeCatch(input({ seed: 42 }))).toEqual(fakeCatch(input({ seed: 42 })));
-  });
-
-  it('başlangıç misinası (12 m) derin türleri getirmez', () => {
     for (let seed = 1; seed <= 50; seed++) {
       const c = fakeCatch(input({ zone: 'marmara', seed }));
-      for (const id of Object.keys(c)) expect(SPECIES[id as keyof typeof SPECIES].depth[0]).toBeLessThanOrEqual(12);
+      for (const id of Object.keys(c)) expect(SPECIES[id as SpeciesId].depth[0]).toBeLessThanOrEqual(12);
     }
   });
 
-  it('yem nadir balık payını artırır, ek süre balık sayısını artırır', () => {
-    const share = (bait: number): number => {
-      let rare = 0;
+  it('olta: yem sevdiği türleri çeker', () => {
+    const liked: SpeciesId[] = ['lufer', 'mezgit', 'palamut'];
+    const share = (bait: FishingIn['bait']): number => {
+      let hit = 0;
       let all = 0;
       for (let seed = 1; seed <= 300; seed++) {
-        const c = fakeCatch(input({ zone: 'bogaz', seed, bait, upgrades: { ...defaultUpgrades(), misina: 4 } }));
+        const c = fakeCatch(input({ zone: 'bogaz', rod: 'karbon', bait, seed }));
         for (const [id, n] of Object.entries(c)) {
           all += n;
-          if (SPECIES[id as keyof typeof SPECIES].price >= RARE_PRICE) rare += n;
+          if (liked.includes(id as SpeciesId)) hit += n;
         }
       }
-      return rare / all;
+      return hit / all;
     };
-    expect(share(10)).toBeGreaterThan(share(0) + 0.05);
-    const total = (bonusSeconds: number) => catchCount(fakeCatch(input({ seed: 7, bonusSeconds })), true);
-    expect(total(15)).toBeGreaterThanOrEqual(total(0));
+    expect(share('karides')).toBeGreaterThan(share('ekmek') + 0.1);
+  });
+
+  it('martı: dalışın ulaştığı türler; gaga daha çok balık getirir', () => {
+    let base = 0;
+    let beak = 0;
+    for (let seed = 1; seed <= 100; seed++) {
+      const a = fakeGullCatch({ upgrades: defaultUpgrades(), seed });
+      const b = fakeGullCatch({ upgrades: { ...defaultUpgrades(), gaga: 4 }, seed });
+      for (const id of Object.keys(a.catch)) expect(['hamsi', 'istavrit', 'naylon']).toContain(id);
+      base += catchCount(a.catch, true);
+      beak += catchCount(b.catch, true);
+    }
+    expect(beak).toBeGreaterThan(base * 1.5);
   });
 });

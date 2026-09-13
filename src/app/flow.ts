@@ -1,15 +1,14 @@
 import type { App } from './app';
-import type { HarborOut, TripSummary } from './types';
+import type { Catch, HarborOut, TripSummary } from './types';
 import { ZONES } from './zones';
-import { upgradeValue } from './upgrades';
-import { applyTrip, voyageBonus, voyageTarget } from './progress';
+import { applyTrip } from './progress';
 import { randomSeed } from './rng';
 import { harborScene } from '../scenes/harbor/scene';
-import { voyageScene } from '../scenes/voyage/scene';
 import { fishingScene } from '../scenes/fishing/scene';
+import { gullScene } from '../scenes/gull/scene';
 import { marketScene } from '../scenes/market/scene';
 
-/** Ana döngü: Liman → Sefer → Liman … */
+/** Ana döngü: Liman → Av (olta ya da martı) → Pazar → Liman … */
 export async function runGame(app: App): Promise<void> {
   let lastTrip: TripSummary | undefined;
   for (;;) {
@@ -18,22 +17,22 @@ export async function runGame(app: App): Promise<void> {
   }
 }
 
-/** Bir sefer: Yolculuk (ya da Hızlı Git) → Av → Pazar; sonucu profile işler. */
 export async function runTrip(app: App, choice: HarborOut): Promise<TripSummary> {
-  const zone = ZONES[choice.zone];
   const upgrades = app.profile.upgrades;
   const seed = randomSeed();
 
-  const target = voyageTarget(zone.id, upgrades.motor);
-  const voyage = choice.fast
-    ? null
-    : await app.show(voyageScene, { zone: zone.id, character: app.profile.character, target }, `Yolculuk · ${zone.name}`);
+  let caught: Catch;
+  if (choice.mode === 'olta') {
+    const { rod, bait } = app.profile;
+    const out = await app.show(fishingScene, { zone: choice.zone, rod, bait, seed }, `Olta · ${ZONES[choice.zone].name}`);
+    caught = out.catch;
+  } else {
+    const out = await app.show(gullScene, { upgrades, seed }, 'Martı · Boğaz');
+    caught = out.catch;
+  }
 
-  const bonus = voyageBonus(voyage, target, upgradeValue('durbun', upgrades.durbun));
-  const fishing = await app.show(fishingScene, { zone: zone.id, upgrades, seed, ...bonus }, `Av · ${zone.name}`);
-  const market = await app.show(marketScene, { catch: fishing.catch, zone: zone.id, upgrades, seed }, 'Karaköy Gece Pazarı');
-
-  const { profile, summary } = applyTrip(app.profile, { zone: zone.id, voyage, fishing, market });
+  const market = await app.show(marketScene, { catch: caught, mode: choice.mode, zone: choice.zone }, 'Karaköy Balık Pazarı');
+  const { profile, summary } = applyTrip(app.profile, { mode: choice.mode, zone: choice.zone, catch: caught, market });
   app.commit(profile);
   return summary;
 }
