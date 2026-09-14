@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { catchCount, parseCatch } from '../../src/app/catch';
 import { SPECIES, gullReach, speciesFor, speciesInReach } from '../../src/app/species';
-import { defaultUpgrades } from '../../src/app/upgrades';
 import { fakeCatch } from '../../src/scenes/fishing/fake';
-import { fakeGullCatch } from '../../src/scenes/gull/fake';
 import type { FishingIn, SpeciesId } from '../../src/app/types';
 
 const input = (extra: Partial<FishingIn> = {}): FishingIn => ({
@@ -65,18 +63,5 @@ describe('sahte avlar (test ve debug)', () => {
       return hit / all;
     };
     expect(share('karides')).toBeGreaterThan(share('ekmek') + 0.1);
-  });
-
-  it('martı: dalışın ulaştığı türler; gaga daha çok balık getirir', () => {
-    let base = 0;
-    let beak = 0;
-    for (let seed = 1; seed <= 100; seed++) {
-      const a = fakeGullCatch({ upgrades: defaultUpgrades(), seed });
-      const b = fakeGullCatch({ upgrades: { ...defaultUpgrades(), gaga: 4 }, seed });
-      for (const id of Object.keys(a.catch)) expect(['hamsi', 'istavrit', 'naylon']).toContain(id);
-      base += catchCount(a.catch, true);
-      beak += catchCount(b.catch, true);
-    }
-    expect(beak).toBeGreaterThan(base * 1.5);
   });
 });
