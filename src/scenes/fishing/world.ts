@@ -1,4 +1,5 @@
-import type { Catch, SpeciesId, ZoneId } from '../../app/types';
+import type { Catch, SpeciesId, WeatherId, ZoneId } from '../../app/types';
+import { NIGHT, WEATHER, type WeatherDef } from '../../app/weather';
 import { BAIT_PULL } from '../../app/gear';
 import { ZONES } from '../../app/zones';
 import { TYPES, ZONE_DEPTH_PX, type FishType } from './data';
@@ -43,8 +44,9 @@ export interface Cloud { x: number; y: number; s: number; v: number }
 export interface Bird { x: number; y: number; v: number; p: number }
 export interface Weed { x: number; h: number; c: string; w: number; p: number }
 export interface Rock { x: number; w: number; h: number; c: string }
+export interface Drop { x: number; y: number; v: number }
 
-export type FishingEvent = 'start' | 'splash' | 'catch' | 'score' | 'gold' | 'bad' | 'zap' | 'tick' | 'end';
+export type FishingEvent = 'start' | 'splash' | 'catch' | 'score' | 'gold' | 'bad' | 'zap' | 'tick' | 'thunder' | 'end';
 
 export interface WorldOptions {
   zone: ZoneId;
@@ -56,6 +58,10 @@ export interface WorldOptions {
   bonusSeconds: number;
   /** Takılı yemin sevdiği türler daha sık görünür. */
   baitLikes: SpeciesId[];
+  /** Hava (varsayılan güneşli). */
+  weather?: WeatherId;
+  /** Gece mi (varsayılan gündüz). */
+  night?: boolean;
   random?: () => number;
 }
 
@@ -75,6 +81,8 @@ export class FishingWorld {
   readonly inisHizi: number;
   readonly makara: number;
   readonly baitLikes: ReadonlySet<SpeciesId>;
+  readonly weather: WeatherDef;
+  readonly night: boolean;
 
   H: number;
   T = 0;
@@ -97,6 +105,12 @@ export class FishingWorld {
   weeds: Weed[] = [];
   rocks: Rock[] = [];
   spawnTimer = 0;
+  /** Fırtınada rüzgârın yönü (-1 sol, 1 sağ, 0 yok). */
+  windDir = 0;
+  windTimer = 1.5;
+  /** Şimşek parlaması (0-1). */
+  flash = 0;
+  drops: Drop[] = [];
 
   readonly catch: Catch = {};
   /** Ses ve titreşim için; sahne her karede boşaltır. */
@@ -122,6 +136,8 @@ export class FishingWorld {
     this.inisHizi = o.inisHizi;
     this.makara = o.makara;
     this.baitLikes = new Set(o.baitLikes);
+    this.weather = WEATHER[o.weather ?? 'gunes'];
+    this.night = o.night ?? false;
     this.scatterDecor();
     this.hook.x = this.rodTip().x;
   }
@@ -230,11 +246,17 @@ export class FishingWorld {
     let total = 0;
     for (const t of TYPES) {
       let w = t.weight;
-      if (t.hazard === 'shark') w = sharks >= 1 ? 0 : w * (0.5 + progress * 1.5);
+      if (t.hazard === 'shark') w = sharks >= 1 ? 0 : w * (0.5 + progress * 1.5) * this.weather.sharkWeight;
       if (t.hazard === 'jelly' && jellies >= 3) w = 0;
-      if (t.junk && junk >= 2) w = 0;
+      if (t.junk) w = junk >= this.weather.junkCap ? 0 : w * this.weather.junkWeight;
       if (t.species && this.baitLikes.has(t.species)) w *= BAIT_PULL;
-      const lo = Math.max(t.metre[0], topM);
+      if (this.night && t.species) {
+        if (NIGHT.likes.includes(t.species)) w *= NIGHT.likeX;
+        else if (NIGHT.dislikes.includes(t.species)) w *= NIGHT.dislikeX;
+      }
+      // Gece fener balığı sığa çıkar.
+      const minM = this.night && t.key === 'fener' ? Math.min(t.metre[0], NIGHT.fenerRise) : t.metre[0];
+      const lo = Math.max(minM, topM);
       const hi = Math.min(t.metre[1], bottomM);
       if (hi < lo) w = 0;
       if (w > 0) {
@@ -255,7 +277,7 @@ export class FishingWorld {
     const dir: 1 | -1 = this.rnd() < 0.5 ? 1 : -1;
     const baseY = this.metreToY(this.rand(chosen[2], chosen[3]));
     const x = anywhere ? this.rand(60, W - 60) : dir > 0 ? -t.len : W + t.len;
-    this.fishes.push({ t, x, y: baseY, baseY, dir, speed: this.rand(t.speed[0], t.speed[1]), phase: this.rand(0, 10), caught: false, cool: 0 });
+    this.fishes.push({ t, x, y: baseY, baseY, dir, speed: this.rand(t.speed[0], t.speed[1]) * this.weather.fishSpeed, phase: this.rand(0, 10), caught: false, cool: 0 });
   }
 
   hits(f: Fish, px: number, py: number, pad = 0): boolean {
@@ -313,9 +335,10 @@ export class FishingWorld {
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       // derin bölgede daha çok balık var, aynı yoğunluk için daha sık doğsunlar
-      this.spawnTimer = this.rand(0.5, 1.1) * (14 / this.maxFish);
+      this.spawnTimer = (this.rand(0.5, 1.1) * (14 / this.maxFish)) / this.weather.spawnRate;
       if (this.fishes.length < this.maxFish) this.spawnFish(false);
     }
+    this.updateWeather(dt);
     this.updateEffects(dt);
   }
 
@@ -330,6 +353,8 @@ export class FishingWorld {
     const maxV = this.hook.fish ? 140 : 260; // balık çekerken tekne yavaşlar
     const b = this.boat;
     b.vx += (dir * maxV - b.vx) * Math.min(1, dt * 4);
+    // Fırtınada rüzgâr tekneyi iter; oyuncu ters yöne sürerek dengeler.
+    b.vx += this.windDir * this.weather.drift * dt;
     b.x += b.vx * dt;
     if (b.x < 90 || b.x > W - 90) {
       b.x = clamp(b.x, 90, W - 90);
@@ -360,7 +385,9 @@ export class FishingWorld {
 
     // derinlik arttıkça olta tekneyi daha geç takip eder
     const depthK = clamp((hook.y - SURFACE) / (this.tabanY - SURFACE), 0, 1);
-    hook.x += (tip.x - hook.x) * Math.min(1, dt * (7 - 5 * depthK));
+    // Dalga misinayı savurur (yağmur/fırtına), derinde daha çok.
+    const sway = Math.sin(this.T * 1.3) * this.weather.hookSway * depthK;
+    hook.x += (tip.x + sway - hook.x) * Math.min(1, dt * (7 - 5 * depthK));
 
     if (prevY < SURFACE && hook.y >= SURFACE) {
       this.splashAt(hook.x, true);
@@ -489,6 +516,37 @@ export class FishingWorld {
       const outX = (f.dir > 0 && f.x > W + f.t.len) || (f.dir < 0 && f.x < -f.t.len);
       const farY = Math.abs(f.y - (this.camY + this.H / 2)) > this.H * 1.1;
       if (outX || farY) this.fishes.splice(i, 1);
+    }
+  }
+
+  private updateWeather(dt: number): void {
+    const wx = this.weather;
+    if (wx.drift > 0 && !this.over) {
+      this.windTimer -= dt;
+      if (this.windTimer <= 0) {
+        this.windDir = this.rnd() < 0.5 ? -1 : 1;
+        this.windTimer = this.rand(3.5, 6.5);
+      }
+    }
+    if (wx.lightning && this.rnd() < dt * 0.12) {
+      this.flash = 1;
+      this.events.push('thunder');
+    }
+    this.flash = Math.max(0, this.flash - dt * 2.5);
+
+    if (wx.rain > 0) {
+      const n = wx.rain * dt;
+      const count = Math.floor(n) + (this.rnd() < n % 1 ? 1 : 0);
+      for (let i = 0; i < count; i++) this.drops.push({ x: this.rand(-40, W + 60), y: this.rand(-20, 20), v: this.rand(650, 900) });
+    }
+    for (let i = this.drops.length - 1; i >= 0; i--) {
+      const d = this.drops[i];
+      d.y += d.v * dt;
+      d.x -= d.v * (wx.lightning ? 0.25 : 0.1) * dt;
+      if (d.y >= this.waveY(d.x)) {
+        if (this.rnd() < 0.08) this.ripples.push({ x: d.x, r: 1, life: 0.5 });
+        this.drops.splice(i, 1);
+      }
     }
   }
 

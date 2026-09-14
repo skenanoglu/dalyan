@@ -2,6 +2,7 @@ import './fishing.css';
 import { deferred, onAction, type SceneFactory } from '../../app/scene';
 import type { FishingIn, FishingOut } from '../../app/types';
 import { BAITS, RODS } from '../../app/gear';
+import { NIGHT, WEATHER } from '../../app/weather';
 import { catchCount } from '../../app/catch';
 import { catchListHtml } from '../../ui/catch-list';
 import { Controls } from './controls';
@@ -19,10 +20,11 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
       <canvas></canvas>
       <header class="f-hud" data-el="hud">
         <div class="f-chip" data-el="timeChip"><b data-el="time"></b><small>SN</small></div>
-        <div class="f-zone"><b data-el="zone"></b><small data-el="depth"></small></div>
+        <div class="f-zone"><b data-el="zone"></b><em data-el="weather"></em><small data-el="depth"></small></div>
         <div class="f-chip"><b data-el="bucket">0</b><small>KOVA</small></div>
       </header>
       <p class="f-hint" data-el="hint">▼ ile oltayı indir</p>
+      <p class="f-banner" data-el="banner" hidden></p>
       <div class="f-pad" data-el="pad">
         <div class="f-group">
           <button class="f-btn" data-key="left" aria-label="Sola">◀</button>
@@ -68,8 +70,17 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
     makara: rod.reel,
     bonusSeconds: 0,
     baitLikes: BAITS[input.bait].likes,
+    weather: input.weather,
+    night: input.night,
   });
   el('zone').textContent = world.zoneName;
+  const weather = WEATHER[input.weather];
+  el('weather').textContent = `${weather.icon} ${weather.name}${input.night ? ` · ${NIGHT.icon} Gece` : ''}`;
+  const bannerText = [
+    input.weather === 'firtina' ? '⛈️ Fırtına! Tekne sürüklenir, olta savrulur.' : '',
+    input.weather === 'yagmur' ? '🌧️ Yağmur: balıklar hareketli, su bulanık.' : '',
+    input.night ? `${NIGHT.icon} Gece: fener sadece yakını aydınlatır.` : '',
+  ].filter(Boolean);
 
   let scale = 1;
   let topInset = 0;
@@ -201,6 +212,7 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
       sfx.play(e);
       if (e === 'catch') haptic(15);
       else if (e === 'bad' || e === 'zap') haptic(40);
+      else if (e === 'thunder') haptic(80);
     }
     world.events.length = 0;
     updateHud();
@@ -216,6 +228,13 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
 
   world.start();
   raf = requestAnimationFrame(frame);
+
+  if (bannerText.length > 0) {
+    const banner = el('banner');
+    banner.innerHTML = bannerText.join('<br>');
+    banner.hidden = false;
+    timers.push(window.setTimeout(() => (banner.hidden = true), 3600));
+  }
 
   if (import.meta.env.DEV) {
     (window as unknown as { __fishing?: object }).__fishing = { world, controls };

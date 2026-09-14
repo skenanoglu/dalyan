@@ -28,6 +28,8 @@ export interface Profile {
   bait: BaitId;
   lastZone: ZoneId;
   lastMode: ModeId;
+  /** Olta için son seçilen zaman: gece mi. */
+  night: boolean;
   logbook: Partial<Record<SpeciesId, LogEntry>>;
   settings: Settings;
   stats: { trips: number; totalMoney: number; totalFish: number };
@@ -48,6 +50,7 @@ export function defaultProfile(): Profile {
     bait: 'ekmek',
     lastZone: 'kiyi',
     lastMode: 'olta',
+    night: false,
     logbook: {},
     settings: { sound: true, haptics: true },
     stats: { trips: 0, totalMoney: 0, totalFish: 0 },
@@ -94,6 +97,7 @@ export function parseProfile(raw: string | null): Profile {
     p.lastZone = data.lastZone;
   }
   if (data.lastMode === 'olta' || data.lastMode === 'marti') p.lastMode = data.lastMode;
+  p.night = bool(data.night, false);
   if (isObj(data.logbook)) {
     for (const id of SPECIES_ORDER) {
       const entry = data.logbook[id];

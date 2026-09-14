@@ -14,6 +14,8 @@ import { defaultProfile } from '../../src/app/save';
 import { upgradeCost, upgradeValue } from '../../src/app/upgrades';
 import { BAITS, RODS, ROD_ORDER } from '../../src/app/gear';
 import { afterTheft, catTarget } from '../../src/scenes/market/scene';
+import { Rng } from '../../src/app/rng';
+import { rollWeather } from '../../src/app/weather';
 
 describe('pazar satışı', () => {
   it('tane fiyatı: oltada bölge çarpanı var, martıda yok; çöp cezası çarpansız', () => {
@@ -148,5 +150,16 @@ describe('sefer uygulama', () => {
     expect(profile.lastMode).toBe('marti');
     expect(summary.zone).toBeNull();
     expect(summary.earned).toBe(45);
+  });
+});
+
+describe('hava tahmini', () => {
+  it('olasılıklara uygun dağılır: çoğu güneşli, fırtına seyrek', () => {
+    const rng = new Rng(11);
+    const n = { gunes: 0, yagmur: 0, firtina: 0 };
+    for (let i = 0; i < 4000; i++) n[rollWeather(() => rng.next())]++;
+    expect(n.gunes / 4000).toBeCloseTo(0.55, 1);
+    expect(n.yagmur / 4000).toBeCloseTo(0.3, 1);
+    expect(n.firtina / 4000).toBeCloseTo(0.15, 1);
   });
 });

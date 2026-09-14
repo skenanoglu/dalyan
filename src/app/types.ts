@@ -16,6 +16,9 @@ export type SpeciesId =
   | 'cizme'
   | 'naylon';
 
+/** Olta seferinin havası. */
+export type WeatherId = 'gunes' | 'yagmur' | 'firtina';
+
 /** Balık tutma yolu: tekneden olta ya da Boğaz'da martı. */
 export type ModeId = 'olta' | 'marti';
 
@@ -35,17 +38,23 @@ export type Catch = Partial<Record<SpeciesId, number>>;
 
 export interface HarborIn {
   lastTrip?: TripSummary;
+  /** Bir sonraki olta seferinin havası. */
+  weather: WeatherId;
 }
 export interface HarborOut {
   mode: ModeId;
   /** Oltanın atılacağı bölge; martıda kullanılmaz. */
   zone: ZoneId;
+  /** Olta gece mi atılacak. */
+  night: boolean;
 }
 
 export interface FishingIn {
   zone: ZoneId;
   rod: RodId;
   bait: BaitId;
+  weather: WeatherId;
+  night: boolean;
   seed: number;
 }
 export interface FishingOut {

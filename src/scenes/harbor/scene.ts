@@ -1,11 +1,12 @@
 import { deferred, onAction, type SceneFactory } from '../../app/scene';
-import type { BaitId, HarborIn, HarborOut, ModeId, RodId, TripSummary, UpgradeId, ZoneId } from '../../app/types';
+import type { BaitId, HarborIn, HarborOut, ModeId, RodId, TripSummary, UpgradeId, WeatherId, ZoneId } from '../../app/types';
 import type { Profile } from '../../app/save';
 import { ZONES, ZONE_ORDER } from '../../app/zones';
 import { SPECIES, SPECIES_ORDER, gullReach } from '../../app/species';
 import { UPGRADES, UPGRADE_ORDER, maxLevel, upgradeCost, upgradeValue } from '../../app/upgrades';
 import { BAITS, BAIT_ORDER, RODS, ROD_ORDER } from '../../app/gear';
 import { MODE_ICON, MODE_NAMES } from '../../app/modes';
+import { NIGHT, WEATHER } from '../../app/weather';
 import { buyBait, buyRod, buyUpgrade, buyZone, canBuyBait, canBuyRod, canBuyUpgrade, canBuyZone } from '../../app/progress';
 import { money } from '../../app/format';
 import { SKYLINE_SVG } from './skyline';
@@ -42,7 +43,7 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
         <nav class="tabs">
           ${TABS.map(([id, label]) => `<button class="tab ${tab === id ? 'on' : ''}" data-act="tab" data-arg="${id}">${label}</button>`).join('')}
         </nav>
-        <div class="tab-body">${tab === 'oyna' ? playView(p, zone) : tab === 'dukkan' ? shopView(p) : logView(p)}</div>
+        <div class="tab-body">${tab === 'oyna' ? playView(p, zone, input.weather) : tab === 'dukkan' ? shopView(p) : logView(p)}</div>
       </div>`;
     root.scrollTop = scroll;
   };
@@ -67,6 +68,9 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
       case 'use-rod':
         if (p.rods[arg as RodId]) commit({ ...p, rod: arg as RodId });
         break;
+      case 'night':
+        commit({ ...p, night: arg === '1' });
+        break;
       case 'use-bait':
         if (p.baits[arg as BaitId]) commit({ ...p, bait: arg as BaitId });
         break;
@@ -84,7 +88,7 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
         break;
       case 'play':
         finished = true;
-        resolve({ mode: arg as ModeId, zone });
+        resolve({ mode: arg as ModeId, zone, night: app.profile.night });
         return;
       case 'close-banner':
         banner = null;
@@ -122,7 +126,8 @@ function zoneChips(p: Profile, selected: ZoneId): string {
   }).join('');
 }
 
-function playView(p: Profile, zone: ZoneId): string {
+function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
+  const weather = WEATHER[weatherId];
   const z = ZONES[zone];
   const rod = RODS[p.rod];
   const bait = BAITS[p.bait];
@@ -151,6 +156,12 @@ function playView(p: Profile, zone: ZoneId): string {
       <div class="chips wrap">${rods}</div>
       <div class="row-label">Yem</div>
       <div class="chips wrap">${baits}</div>
+      <div class="row-label">Zaman</div>
+      <div class="chips">
+        <button class="chip ${p.night ? '' : 'on'}" data-act="night" data-arg="0">☀️ Gündüz</button>
+        <button class="chip ${p.night ? 'on' : ''}" data-act="night" data-arg="1">${NIGHT.icon} Gece</button>
+      </div>
+      <p class="forecast ${weather.id}">${weather.icon} Hava: <b>${weather.name}</b>. ${weather.desc}${p.night ? `<br>${NIGHT.icon} ${NIGHT.desc}` : ''}</p>
       <p class="mode-meta">${reach} m'ye kadar inersin${depthNote}. ${bait.name}: ${bait.desc.toLowerCase()}.</p>
       <button class="btn primary" data-act="play" data-arg="olta">Oltayı At</button>
     </section>

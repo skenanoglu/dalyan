@@ -6,6 +6,8 @@ Boğaz'da balıkçılık oyunu. **Oyna:** https://skenanoglu.github.io/dalyan/
 
 - 🎣 **Olta** (Balık Avı'ndan): tekneyle açıl, 90 saniye olta at. Küçük balıklar sığda, büyükler derinde.
   Daha iyi olta daha derine iner; yemler sevdiği türleri çeker. Bölgeler (Sarayburnu → Marmara Dibi) balığın fiyatını artırır.
+  Gündüz ya da gece seçilir; hava her sefer değişir: güneşli, yağmurlu (su bulanık, balık hareketli) ya da fırtına
+  (tekne sürüklenir, olta savrulur, şimşek çakar). Gece sadece fenerin çevresi görünür, fener balığı sığa çıkar.
 - 🕊️ **Martı** (Boğaz'dan): dokun = yukarı, basılı tut = dal. Engellerden geç, suya dalıp balığı gagala.
   Dalış yükseldikçe derindeki büyük balıklara ulaşır (ulaşamadıkların soluk görünür); nefes su altı süresini,
   gaga menzili, can simidi çarpışma affını belirler. Sabah, gün batımı, gece ve fırtına sırayla gelir.
@@ -31,7 +33,7 @@ npm run build
 - `?sifirla` — kaydı sil
 - `?debug=1&para=5000` — parayı ayarla
 - `?sahne=liman|olta|marti|pazar` — tek sahneyi aç; sonucu ekranda gösterir
-  - `bolge=kiyi|bogaz|cukur|marmara`, `mod=olta|marti`, `seed=42`
+  - `bolge=kiyi|bogaz|cukur|marmara`, `mod=olta|marti`, `hava=gunes|yagmur|firtina`, `gece=1`, `seed=42`
   - `kova=hamsi:8,lufer:3,cizme:1` (pazar için)
 - Geliştirme modunda konsolda `__fishing` (`world`, `controls`) ve `__gull` (`game`): `update` ile adım adım oynatılabilir.
 

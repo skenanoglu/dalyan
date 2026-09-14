@@ -127,3 +127,62 @@ describe('av dünyası', () => {
     expect(keys.has('fener')).toBe(false);
   });
 });
+
+describe('hava ve gece', () => {
+  it('fırtınada rüzgâr tekneyi sürükler; güneşte tekne yerinde durur', () => {
+    const calm = empty();
+    const storm = empty({ weather: 'firtina' });
+    storm.windDir = 1;
+    storm.windTimer = 99;
+    const x0 = calm.boat.x;
+    run(calm, 2);
+    run(storm, 2);
+    expect(Math.abs(calm.boat.x - x0)).toBeLessThan(1);
+    expect(storm.boat.x - x0).toBeGreaterThan(60);
+  });
+
+  it('fırtınada dalga derindeki oltayı savurur', () => {
+    const sway = (weather: WorldOptions['weather']): number => {
+      const w = empty({ weather, misinaM: 12 });
+      w.windTimer = 99;
+      run(w, 3, down);
+      let max = 0;
+      for (let i = 0; i < 240; i++) {
+        w.update(STEP, idle);
+        max = Math.max(max, Math.abs(w.hook.x - w.rodTip().x));
+      }
+      return max;
+    };
+    expect(sway('firtina')).toBeGreaterThan(sway('gunes') + 5);
+  });
+
+  it('yağmur ve fırtınada gökten damla düşer; güneşte düşmez', () => {
+    const rain = empty({ weather: 'yagmur' });
+    const sun = empty();
+    run(rain, 0.5);
+    run(sun, 0.5);
+    expect(rain.drops.length).toBeGreaterThan(10);
+    expect(sun.drops).toHaveLength(0);
+  });
+
+  it('gece fener balığı sığa çıkar, lüfer daha sık görünür', () => {
+    const count = (night: boolean) => {
+      const w = make({ zone: 'marmara', viewHeight: 6000, night });
+      for (let i = 0; i < 4000; i++) w.spawnFish(true);
+      const shallowFener = w.fishes.filter((f) => f.t.key === 'fener' && w.depthMetre(f.baseY) < 69).length;
+      const fish = w.fishes.filter((f) => f.t.species && !f.t.junk);
+      return { shallowFener, lufer: fish.filter((f) => f.t.key === 'lufer').length / fish.length };
+    };
+    const day = count(false);
+    const night = count(true);
+    expect(day.shallowFener).toBe(0);
+    expect(night.shallowFener).toBeGreaterThan(0);
+    expect(night.lufer).toBeGreaterThan(day.lufer * 1.3);
+  });
+
+  it('fırtınada şimşek çakar', () => {
+    const w = empty({ weather: 'firtina' });
+    run(w, 60);
+    expect(w.events).toContain('thunder');
+  });
+});

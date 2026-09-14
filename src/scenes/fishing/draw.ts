@@ -1,5 +1,6 @@
 import { HOOK_TOP, SURFACE, TAU, W, clamp, lerp, type Fish, type FishingWorld } from './world';
 import { drawCatchable } from './fishart';
+import { NIGHT } from '../../app/weather';
 
 // Balık Avı'nın çizim kodu (BalikAvi/js/cizim.js) bağlamı parametre alacak şekilde taşındı.
 
@@ -69,6 +70,7 @@ export class FishingRenderer {
   private rayGrad: CanvasGradient | null = null;
   private surfaceGrad: CanvasGradient | null = null;
   private fishGrads = new Map<string, CanvasGradient>();
+  private darkCanvas: HTMLCanvasElement | null = null;
 
   draw(g: Ctx, w: FishingWorld, o: DrawOptions): void {
     if (this.builtScale !== o.scale) this.build(w, o.scale);
@@ -76,17 +78,26 @@ export class FishingRenderer {
     g.setTransform(o.scale, 0, 0, o.scale, 0, -Math.round(w.camY) * o.scale);
     this.background(g, w);
     this.skyAnim(g, w);
+    this.stormSky(g, w);
     this.waterAnim(g, w, o.lowQuality);
     this.seabedAnim(g, w);
     for (const f of w.fishes) if (!f.caught) this.entity(g, f, f.x, f.y);
     this.bubbles(g, w);
+    this.murk(g, w);
     this.boat(g, w);
+    if (w.night) this.lantern(g, w);
     this.lineAndHook(g, w);
     this.flights(g, w);
     this.surfaceOverlay(g, w);
     this.effects(g, w);
+    this.rain(g, w);
 
     g.setTransform(o.scale, 0, 0, o.scale, 0, 0);
+    if (w.night) this.nightDark(g, w, o.scale);
+    if (w.flash > 0) {
+      g.fillStyle = `rgba(235,240,255,${w.flash * 0.55})`;
+      g.fillRect(0, 0, W, w.H);
+    }
     if (w.camY > 4) this.surfaceStrip(g, w, o.topInset);
   }
 
@@ -584,6 +595,96 @@ export class FishingRenderer {
       text(g, p.str, p.x, p.y, p.size, p.color);
     }
     g.globalAlpha = 1;
+  }
+
+  // ---------- Hava ----------
+  private stormSky(g: Ctx, w: FishingWorld): void {
+    const d = w.weather.dim;
+    if (d <= 0) return;
+    g.fillStyle = `rgba(40,50,70,${d})`;
+    g.fillRect(0, 0, W, SURFACE + 8);
+    if (!w.weather.lightning) return;
+    // Fırtına bulutları
+    g.fillStyle = 'rgba(58,64,78,0.92)';
+    for (let i = 0; i < 5; i++) {
+      const x = ((i * 150 + w.T * 14) % (W + 260)) - 130;
+      const y = 30 + (i % 2) * 28;
+      circle(g, x, y, 34);
+      circle(g, x + 36, y - 12, 42);
+      circle(g, x + 78, y, 32);
+    }
+  }
+
+  private murk(g: Ctx, w: FishingWorld): void {
+    const m = w.weather.murk;
+    if (m <= 0) return;
+    g.fillStyle = `rgba(28,58,66,${m * 0.55})`;
+    g.fillRect(0, SURFACE + 6, W, Math.max(w.worldH, w.tabanY + SEABED_BELOW) - SURFACE);
+  }
+
+  private rain(g: Ctx, w: FishingWorld): void {
+    if (w.drops.length === 0) return;
+    const slant = w.weather.lightning ? 0.25 : 0.1;
+    g.strokeStyle = 'rgba(215,228,242,0.55)';
+    g.lineWidth = 1.2;
+    g.beginPath();
+    for (const d of w.drops) {
+      g.moveTo(d.x, d.y);
+      g.lineTo(d.x + d.v * slant * 0.03, d.y - d.v * 0.03);
+    }
+    g.stroke();
+  }
+
+  private lantern(g: Ctx, w: FishingWorld): void {
+    const p = w.boatPoint(-40, -46);
+    g.save();
+    g.strokeStyle = '#3b2a1a';
+    g.lineWidth = 2;
+    g.beginPath();
+    const base = w.boatPoint(-40, -20);
+    g.moveTo(base.x, base.y);
+    g.lineTo(p.x, p.y);
+    g.stroke();
+    g.shadowColor = '#ffd97a';
+    g.shadowBlur = 16;
+    g.fillStyle = '#ffe9a8';
+    circle(g, p.x, p.y, 5);
+    g.restore();
+  }
+
+  /** Gece karanlığı: oltanın ve teknenin feneri çevresi aydınlık kalır. */
+  private nightDark(g: Ctx, w: FishingWorld, scale: number): void {
+    const target = g.canvas;
+    const c = this.darkCanvas ?? (this.darkCanvas = document.createElement('canvas'));
+    if (c.width !== target.width || c.height !== target.height) {
+      c.width = target.width;
+      c.height = target.height;
+    }
+    const d = c.getContext('2d')!;
+    d.setTransform(1, 0, 0, 1, 0, 0);
+    d.globalCompositeOperation = 'source-over';
+    d.clearRect(0, 0, c.width, c.height);
+    d.fillStyle = `rgba(3,8,22,${NIGHT.darkness})`;
+    d.fillRect(0, 0, c.width, c.height);
+    d.globalCompositeOperation = 'destination-out';
+    const light = (x: number, y: number, r: number): void => {
+      const sx = x * scale;
+      const sy = (y - Math.round(w.camY)) * scale;
+      const sr = r * scale;
+      const grad = d.createRadialGradient(sx, sy, sr * 0.15, sx, sy, sr);
+      grad.addColorStop(0, 'rgba(0,0,0,1)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      d.fillStyle = grad;
+      d.fillRect(sx - sr, sy - sr, sr * 2, sr * 2);
+    };
+    light(w.hook.x, w.hook.y, NIGHT.hookLight);
+    const lamp = w.boatPoint(-40, -46);
+    light(lamp.x, lamp.y, NIGHT.boatLight);
+    d.globalCompositeOperation = 'source-over';
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.drawImage(c, 0, 0);
+    g.restore();
   }
 
   /** Derine inince teknenin ve misinanın yeri kaybolmasın diye üstte ince bir şerit. */

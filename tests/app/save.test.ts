@@ -63,6 +63,7 @@ describe('kayıt', () => {
     p.upgrades.dalis = 2;
     p.logbook.lufer = { count: 3 };
     p.settings.sound = false;
+    p.night = true;
     p.stats = { trips: 4, totalMoney: 900, totalFish: 41 };
     expect(parseProfile(JSON.stringify(p))).toEqual(p);
   });

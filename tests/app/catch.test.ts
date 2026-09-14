@@ -8,6 +8,8 @@ const input = (extra: Partial<FishingIn> = {}): FishingIn => ({
   zone: 'kiyi',
   rod: 'kamis',
   bait: 'ekmek',
+  weather: 'gunes',
+  night: false,
   seed: 1,
   ...extra,
 });

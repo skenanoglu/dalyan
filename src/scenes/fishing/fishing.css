@@ -132,3 +132,26 @@
 
 @keyframes f-blink { 50% { background: rgba(5, 35, 60, 0.62); } }
 @keyframes f-pulse { 50% { opacity: 0.55; } }
+
+.f-zone em { margin-top: 2px; font-size: 11px; font-style: normal; font-weight: 700; color: #e0f2fe; }
+.f-banner {
+  position: absolute;
+  top: 22%;
+  left: 50%;
+  z-index: 2;
+  width: max-content;
+  max-width: 86%;
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 16px;
+  background: rgba(5, 20, 40, 0.8);
+  color: #fef3c7;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+  animation: f-pop 0.4s ease;
+}
+.f-banner[hidden] { display: none; }
+@keyframes f-pop { from { opacity: 0; transform: translate(-50%, -8px); } }

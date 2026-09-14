@@ -59,6 +59,24 @@ export class FishingSfx {
     src.start();
   }
 
+  private thunder(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.enabled) return;
+    const len = 1.6;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * len), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 280;
+    const g = ctx.createGain();
+    g.gain.value = 0.5;
+    src.connect(f).connect(g).connect(ctx.destination);
+    src.start();
+  }
+
   play(e: FishingEvent): void {
     switch (e) {
       case 'splash':
@@ -88,6 +106,9 @@ export class FishingSfx {
       case 'start':
         this.tone(440, 0.1, 'triangle', 0.12);
         this.tone(660, 0.15, 'triangle', 0.12, null, 0.1);
+        break;
+      case 'thunder':
+        this.thunder();
         break;
       case 'end':
         [784, 659, 523, 392].forEach((f, i) => this.tone(f, 0.2, 'triangle', 0.12, null, i * 0.15));
