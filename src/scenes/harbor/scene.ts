@@ -23,6 +23,7 @@ import {
   canBuyRod,
   canBuyZone,
   nextHookSlotPrice,
+  rodHookCapacity,
   setBaitSlot,
 } from '../../app/progress';
 import { money } from '../../app/format';
@@ -48,6 +49,7 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
   let authMode: 'signin' | 'signup' = 'signin';
   let authBusy = false;
   let authError: string | null = null;
+  let rodInfoOpen = false;
 
   const render = (): void => {
     const p = app.profile;
@@ -70,7 +72,7 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
         <nav class="tabs">
           ${TABS.map(([id, label]) => `<button class="tab ${tab === id ? 'on' : ''}" data-act="tab" data-arg="${id}">${label}</button>`).join('')}
         </nav>
-        <div class="tab-body">${tab === 'oyna' ? playView(p, zone, input.weather) : tab === 'donanim' ? donanimView(p) : tab === 'dukkan' ? shopView(p) : logView(p)}</div>
+        <div class="tab-body">${tab === 'oyna' ? playView(p, zone, input.weather, rodInfoOpen) : tab === 'donanim' ? donanimView(p) : tab === 'dukkan' ? shopView(p) : logView(p)}</div>
       </div>`;
     root.scrollTop = scroll;
   };
@@ -172,6 +174,9 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
         break;
       case 'duration':
         commit({ ...p, fishSeconds: Number(arg) });
+        break;
+      case 'rod-info':
+        rodInfoOpen = !rodInfoOpen;
         break;
       case 'buy-zone':
         if (commit(buyZone(p, arg as ZoneId))) zone = arg as ZoneId;
@@ -293,7 +298,17 @@ function zoneChips(p: Profile, selected: ZoneId): string {
   }).join('');
 }
 
-function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
+function rodInfoView(p: Profile): string {
+  const rows = ROD_ORDER.map((id) => {
+    const r = RODS[id];
+    const dropX = (r.drop / RODS.kamis.drop).toFixed(1);
+    const owned = p.rods[id] ? '' : ` · ${money(r.price)}`;
+    return `<li><b>${r.name}</b><small>iniş ×${dropX} · çekiş ×${r.reel} · ${r.hookCapacity} iğne${r.sharkReady ? ' · köpekbalığına hazır' : ''}${owned}</small></li>`;
+  }).join('');
+  return `<ul class="rod-info">${rows}</ul>`;
+}
+
+function playView(p: Profile, zone: ZoneId, weatherId: WeatherId, rodInfoOpen: boolean): string {
   const weather = WEATHER[weatherId];
   const z = ZONES[zone];
   const line = LINES[p.line];
@@ -324,7 +339,11 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
       </div>
       <div class="row-label">Bölge</div>
       <div class="chips wrap">${zoneChips(p, zone)}</div>
-      <div class="row-label">Olta</div>
+      <div class="row-label row-label-info">
+        Olta
+        <button class="icon-btn tiny" data-act="rod-info" aria-label="Olta özellikleri">ℹ️</button>
+      </div>
+      ${rodInfoOpen ? rodInfoView(p) : ''}
       <div class="chips wrap">${rods}</div>
       <div class="row-label">Misina</div>
       <div class="chips wrap">${lines}</div>
@@ -346,28 +365,37 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
 }
 
 function donanimView(p: Profile): string {
+  const rod = RODS[p.rod];
+  const cap = rodHookCapacity(p);
   const slots = p.baitSlots
-    .map(
-      (id, i) => `
-      <div class="hook-slot" data-slot="${i}">
-        <span class="hook-slot-icon">🪝</span>
+    .map((id, i) => {
+      const rodLocked = i >= cap;
+      return `
+      <div class="hook-slot ${rodLocked ? 'locked rod-locked' : ''}" ${rodLocked ? '' : `data-slot="${i}"`}>
+        <span class="hook-slot-icon">${rodLocked ? '🚫' : '🪝'}</span>
         <span class="hook-slot-bait">${BAITS[id].icon} ${BAITS[id].name}</span>
-      </div>`,
-    )
+        ${rodLocked ? '<small>Daha güçlü olta gerek</small>' : ''}
+      </div>`;
+    })
     .join('');
   const nextPrice = nextHookSlotPrice(p);
-  const addSlot =
-    nextPrice !== null
-      ? `<button class="hook-slot locked" data-act="buy-hookslot" ${canBuyHookSlot(p) ? '' : 'disabled'}>
-          <span class="hook-slot-icon">🔒</span>
-          <span class="hook-slot-bait">+ İğne · ${money(nextPrice)}</span>
-        </button>`
-      : '';
+  let addSlot = '';
+  if (nextPrice !== null) {
+    addSlot = `<button class="hook-slot locked" data-act="buy-hookslot" ${canBuyHookSlot(p) ? '' : 'disabled'}>
+        <span class="hook-slot-icon">🔒</span>
+        <span class="hook-slot-bait">+ İğne · ${money(nextPrice)}</span>
+      </button>`;
+  } else if (rod.hookCapacity < 3) {
+    addSlot = `<div class="hook-slot locked rod-locked">
+        <span class="hook-slot-icon">🔒</span>
+        <span class="hook-slot-bait">Daha güçlü olta gerek</span>
+      </div>`;
+  }
   const tray = BAIT_ORDER.filter((id) => p.baits[id])
     .map((id) => `<div class="bait-chip" data-drag-bait="${id}">${BAITS[id].icon} ${BAITS[id].name}</div>`)
     .join('');
   return `
-    <p class="rig-note">Bir yemi sürükleyip bir iğneye bırak; her iğne kendi yemiyle balık çeker. Ne kadar çok iğnen olursa o kadar çeşitli balık gelir.</p>
+    <p class="rig-note">Bir yemi sürükleyip bir iğneye bırak; her iğne kendi yemiyle balık çeker. ${rod.name}: en fazla ${cap} iğne taşır.</p>
     <div class="rig-hooks">${slots}${addSlot}</div>
     <div class="row-label">Yemlerin</div>
     <div class="rig-tray">${tray}</div>`;

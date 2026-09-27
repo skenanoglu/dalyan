@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { BaitId } from '../../src/app/types';
 import {
+  activeBaitSlots,
   applyTrip,
   buyBait,
   buyHookSlot,
@@ -8,6 +10,7 @@ import {
   canBuyHookSlot,
   canBuyZone,
   nextHookSlotPrice,
+  rodHookCapacity,
   sellCatch,
   setBaitSlot,
   unitPrice,
@@ -120,24 +123,39 @@ describe('dükkân', () => {
 });
 
 describe('iğne sayısı ve yem yerleşimi', () => {
-  it('yeni iğne çok pahalıdır; en fazla 3 iğneye kadar eklenir', () => {
+  it('iğne sayısı oltaya bağlıdır: ucuz olta 1, pahalı 2, en pahalısı 3 iğne taşır', () => {
     const p = defaultProfile();
     expect(p.hookCount).toBe(1);
-    expect(nextHookSlotPrice(p)).toBe(20000);
-    expect(canBuyHookSlot(p)).toBe(false);
-    expect(buyHookSlot(p)).toBeNull();
+    expect(rodHookCapacity(p)).toBe(1); // kamış olta: tek iğne
+    expect(nextHookSlotPrice(p)).toBeNull(); // parası olsa da olta yetersiz
+    expect(buyHookSlot({ ...p, money: 1e9 })).toBeNull();
 
-    const rich = { ...p, money: 20000 };
+    const withKarbon = { ...p, rod: 'karbon' as const };
+    expect(rodHookCapacity(withKarbon)).toBe(2);
+    expect(nextHookSlotPrice(withKarbon)).toBe(20000);
+    expect(canBuyHookSlot(withKarbon)).toBe(false);
+
+    const rich = { ...withKarbon, money: 20000 };
     const withSecond = buyHookSlot(rich)!;
     expect(withSecond.money).toBe(0);
     expect(withSecond.hookCount).toBe(2);
     expect(withSecond.baitSlots).toEqual(['ekmek', 'ekmek']);
+    expect(nextHookSlotPrice(withSecond)).toBeNull(); // karbon olta 2'de tavan yapar
 
-    const richer = { ...withSecond, money: 60000 };
-    const withThird = buyHookSlot(richer)!;
+    const withDerin = { ...withSecond, rod: 'derin' as const, money: 60000 };
+    expect(rodHookCapacity(withDerin)).toBe(3);
+    const withThird = buyHookSlot(withDerin)!;
     expect(withThird.hookCount).toBe(3);
     expect(nextHookSlotPrice(withThird)).toBeNull();
     expect(buyHookSlot({ ...withThird, money: 1e9 })).toBeNull();
+  });
+
+  it('zayıf oltaya geçince fazla iğneler geçici olarak devre dışı kalır', () => {
+    const withThree = { ...defaultProfile(), rod: 'derin' as const, hookCount: 3, baitSlots: ['ekmek', 'ekmek', 'ekmek'] as BaitId[] };
+    expect(activeBaitSlots(withThree)).toEqual(['ekmek', 'ekmek', 'ekmek']);
+    const backToKamis = { ...withThree, rod: 'kamis' as const };
+    expect(activeBaitSlots(backToKamis)).toEqual(['ekmek']); // veri kaybolmaz, sadece o seferde kullanılmaz
+    expect(backToKamis.baitSlots).toHaveLength(3);
   });
 
   it('yalnızca sahip olunan bir yem, sahip olunan bir iğneye takılabilir', () => {

@@ -297,6 +297,31 @@ button:disabled { cursor: default; opacity: 0.45; }
 .hook-slot.locked { border-style: solid; opacity: 0.75; }
 .hook-slot.locked .hook-slot-bait { color: var(--dim); font-weight: 400; }
 .hook-slot.drop-hover { border-color: var(--sea); border-style: solid; background: rgba(31, 181, 232, 0.18); }
+.hook-slot.rod-locked { opacity: 0.6; }
+.hook-slot small { font-size: 10px; color: var(--bad); font-weight: 400; }
+
+.row-label-info { display: flex; align-items: center; gap: 6px; }
+.icon-btn.tiny {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1;
+}
+.rod-info {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rod-info li { display: flex; flex-direction: column; gap: 2px; }
+.rod-info b { font-size: 13px; }
+.rod-info small { color: var(--dim); font-size: 11px; }
 .rig-tray { display: flex; flex-wrap: wrap; gap: 8px; }
 .bait-chip {
   padding: 8px 12px;

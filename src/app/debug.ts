@@ -5,6 +5,7 @@ import { isZoneId } from './zones';
 import { parseCatch } from './catch';
 import { randomSeed } from './rng';
 import { isWeatherId, rollWeather } from './weather';
+import { activeBaitSlots } from './progress';
 import { harborScene } from '../scenes/harbor/scene';
 import { fishingScene } from '../scenes/fishing/scene';
 import { marketScene } from '../scenes/market/scene';
@@ -49,7 +50,7 @@ export function startDebugScene(app: App, params: URLSearchParams): boolean {
         {
           zone,
           rod: app.profile.rod,
-          baitSlots: app.profile.baitSlots,
+          baitSlots: activeBaitSlots(app.profile),
           line: app.profile.line,
           hook: app.profile.hook,
           boat: app.profile.boat,
@@ -63,7 +64,7 @@ export function startDebugScene(app: App, params: URLSearchParams): boolean {
     pazar: () => {
       const caught =
         parseCatch(params.get('kova')) ??
-        fakeCatch({ zone, rod: app.profile.rod, baitSlots: app.profile.baitSlots, line: app.profile.line, weather, night, seed });
+        fakeCatch({ zone, rod: app.profile.rod, baitSlots: activeBaitSlots(app.profile), line: app.profile.line, weather, night, seed });
       return app.show(marketScene, { catch: caught, zone }, 'Pazar');
     },
   };

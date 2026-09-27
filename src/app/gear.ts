@@ -10,6 +10,8 @@ export interface Rod {
   drop: number;
   /** Çekme hızı çarpanı. */
   reel: number;
+  /** Bu oltaya takılabilecek en fazla iğne; ucuz oltalar tek iğne taşır. */
+  hookCapacity: number;
   /** Yalnızca en güçlü olta; en dayanıklı misinayla köpekbalığı tutmayı mümkün kılar. */
   sharkReady?: boolean;
 }
@@ -59,11 +61,20 @@ export interface Bait {
 export const BAIT_PULL = 3;
 
 export const RODS: Record<RodId, Rod> = {
-  kamis: { id: 'kamis', name: 'Kamış Olta', price: 0, desc: 'Yavaş iner, yavaş çeker', drop: 190, reel: 1 },
-  bambu: { id: 'bambu', name: 'Bambu Olta', price: 250, desc: 'Biraz daha hızlı iner ve çeker', drop: 230, reel: 1.15 },
-  karbon: { id: 'karbon', name: 'Karbon Olta', price: 900, desc: 'Hafif ve hızlı çekiş', drop: 280, reel: 1.35 },
-  makarali: { id: 'makarali', name: 'Makaralı Olta', price: 3000, desc: 'Büyük balığı çabuk çeker', drop: 340, reel: 1.6 },
-  derin: { id: 'derin', name: 'Derin Deniz Oltası', price: 9000, desc: 'En güçlü çekiş; en dayanıklı misinayla köpekbalığı tutulur', drop: 400, reel: 2, sharkReady: true },
+  kamis: { id: 'kamis', name: 'Kamış Olta', price: 0, desc: 'Yavaş iner, yavaş çeker', drop: 190, reel: 1, hookCapacity: 1 },
+  bambu: { id: 'bambu', name: 'Bambu Olta', price: 250, desc: 'Biraz daha hızlı iner ve çeker', drop: 230, reel: 1.15, hookCapacity: 1 },
+  karbon: { id: 'karbon', name: 'Karbon Olta', price: 900, desc: 'Hafif ve hızlı çekiş; 2 iğne taşır', drop: 280, reel: 1.35, hookCapacity: 2 },
+  makarali: { id: 'makarali', name: 'Makaralı Olta', price: 3000, desc: 'Büyük balığı çabuk çeker; 2 iğne taşır', drop: 340, reel: 1.6, hookCapacity: 2 },
+  derin: {
+    id: 'derin',
+    name: 'Derin Deniz Oltası',
+    price: 9000,
+    desc: 'En güçlü çekiş; 3 iğne taşır; en dayanıklı misinayla köpekbalığı tutulur',
+    drop: 400,
+    reel: 2,
+    hookCapacity: 3,
+    sharkReady: true,
+  },
 };
 
 export const ROD_ORDER: RodId[] = ['kamis', 'bambu', 'karbon', 'makarali', 'derin'];

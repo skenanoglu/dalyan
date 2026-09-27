@@ -98,8 +98,18 @@ export function buyBoat(p: Profile, id: BoatId): Profile | null {
 
 // ---------- Oltaya ikinci/üçüncü iğne ekleme ----------
 
+/** Oltanın izin verdiği en fazla iğne; ucuz oltalar tek, en pahalısı 3 iğne taşır. */
+export function rodHookCapacity(p: Profile): number {
+  return Math.min(MAX_HOOK_SLOTS, RODS[p.rod].hookCapacity);
+}
+
+/** Elindeki oltanın taşıyabildiği kadarı; fazlası (daha güçlü oltayla alınmış olsa da) devre dışı kalır. */
+export function activeBaitSlots(p: Profile): BaitId[] {
+  return p.baitSlots.slice(0, rodHookCapacity(p));
+}
+
 export function nextHookSlotPrice(p: Profile): number | null {
-  if (p.hookCount >= MAX_HOOK_SLOTS) return null;
+  if (p.hookCount >= rodHookCapacity(p)) return null;
   return HOOK_SLOT_PRICE[p.hookCount + 1] ?? null;
 }
 
