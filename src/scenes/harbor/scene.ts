@@ -1,6 +1,7 @@
 import { deferred, onAction, type SceneFactory } from '../../app/scene';
 import type { BaitId, HarborIn, HarborOut, ModeId, RodId, TripSummary, UpgradeId, WeatherId, ZoneId } from '../../app/types';
 import type { Profile } from '../../app/save';
+import { authErrorMessage, firebaseReady, signIn, signInWithGoogle, signOutUser, signUp, type User } from '../../app/cloud';
 import { ZONES, ZONE_ORDER } from '../../app/zones';
 import { SPECIES, SPECIES_ORDER, gullReach } from '../../app/species';
 import { UPGRADES, UPGRADE_ORDER, maxLevel, upgradeCost, upgradeValue } from '../../app/upgrades';
@@ -25,6 +26,10 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
   let zone: ZoneId = app.profile.lastZone;
   let banner: TripSummary | null = input.lastTrip ?? null;
   let finished = false;
+  let accountOpen = false;
+  let authMode: 'signin' | 'signup' = 'signin';
+  let authBusy = false;
+  let authError: string | null = null;
 
   const render = (): void => {
     const p = app.profile;
@@ -36,10 +41,14 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
             <h1 class="logo">DALYAN</h1>
             <p class="sub">Karaköy Limanı</p>
           </div>
-          <div class="money">${money(p.money)}</div>
+          <div class="top-right">
+            <div class="money">${money(p.money)}</div>
+            <button class="icon-btn account-btn" data-act="account-open" aria-label="Hesap">${accountIcon(app.user)}</button>
+          </div>
         </header>
         <div class="skyline">${SKYLINE_SVG}</div>
         ${banner ? bannerView(banner) : ''}
+        ${accountOpen ? accountView(app.user, { authMode, authBusy, authError }) : ''}
         <nav class="tabs">
           ${TABS.map(([id, label]) => `<button class="tab ${tab === id ? 'on' : ''}" data-act="tab" data-arg="${id}">${label}</button>`).join('')}
         </nav>
@@ -54,10 +63,69 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
     return true;
   };
 
+  const submitAuth = async (): Promise<void> => {
+    const email = root.querySelector<HTMLInputElement>('#auth-email')?.value.trim() ?? '';
+    const password = root.querySelector<HTMLInputElement>('#auth-pass')?.value ?? '';
+    if (!email || !password) {
+      authError = 'E-posta ve şifre gerekli.';
+      render();
+      return;
+    }
+    authBusy = true;
+    authError = null;
+    render();
+    try {
+      if (authMode === 'signin') await signIn(email, password);
+      else await signUp(email, password);
+      accountOpen = false;
+    } catch (e) {
+      authError = authErrorMessage(e);
+    }
+    authBusy = false;
+    render();
+  };
+
+  const submitGoogle = async (): Promise<void> => {
+    authBusy = true;
+    authError = null;
+    render();
+    try {
+      await signInWithGoogle();
+      accountOpen = false;
+    } catch (e) {
+      authError = authErrorMessage(e);
+    }
+    authBusy = false;
+    render();
+  };
+
+  const offAuth = app.onAuth(() => render());
+
   const off = onAction(root, (act, arg) => {
     if (finished) return;
     const p = app.profile;
     switch (act) {
+      case 'account-open':
+        accountOpen = true;
+        authError = null;
+        break;
+      case 'account-close':
+        accountOpen = false;
+        break;
+      case 'account-mode':
+        authMode = arg as 'signin' | 'signup';
+        authError = null;
+        break;
+      case 'account-submit':
+        void submitAuth();
+        return;
+      case 'account-google':
+        void submitGoogle();
+        return;
+      case 'account-signout':
+        accountOpen = false;
+        void signOutUser();
+        break;
       case 'tab':
         tab = arg as Tab;
         root.scrollTop = 0;
@@ -100,8 +168,67 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
   });
 
   render();
-  return { done: promise, destroy: off };
+  return {
+    done: promise,
+    destroy: () => {
+      off();
+      offAuth();
+    },
+  };
 };
+
+function accountIcon(user: User | null): string {
+  if (!user) return '👤';
+  const letter = (user.email ?? user.displayName ?? '?').trim().charAt(0).toUpperCase();
+  return letter || '👤';
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+}
+
+interface AuthState {
+  authMode: 'signin' | 'signup';
+  authBusy: boolean;
+  authError: string | null;
+}
+
+function accountView(user: User | null, state: AuthState): string {
+  const body = user ? loggedInView(user) : firebaseReady ? authFormView(state) : notConfiguredView();
+  return `
+    <div class="modal">
+      <div class="modal-head">
+        <b>Hesap</b>
+        <button class="icon-btn" data-act="account-close" aria-label="Kapat">✕</button>
+      </div>
+      ${body}
+    </div>`;
+}
+
+function loggedInView(user: User): string {
+  return `
+    <p class="auth-note">${escapeHtml(user.email ?? 'Google hesabı')} ile giriş yaptın. İlerlemen buluta kaydediliyor, başka cihazdan aynı hesapla girip devam edebilirsin.</p>
+    <button class="btn" data-act="account-signout">Çıkış Yap</button>`;
+}
+
+function notConfiguredView(): string {
+  return `<p class="auth-note">Bu oyun kopyasında bulut girişi henüz ayarlanmamış.</p>`;
+}
+
+function authFormView(state: AuthState): string {
+  const { authMode, authBusy, authError } = state;
+  return `
+    <div class="chips">
+      <button class="chip ${authMode === 'signin' ? 'on' : ''}" data-act="account-mode" data-arg="signin">Giriş</button>
+      <button class="chip ${authMode === 'signup' ? 'on' : ''}" data-act="account-mode" data-arg="signup">Kayıt Ol</button>
+    </div>
+    <label class="field">E-posta<input type="email" id="auth-email" autocomplete="email" placeholder="ornek@mail.com"></label>
+    <label class="field">Şifre<input type="password" id="auth-pass" autocomplete="${authMode === 'signin' ? 'current-password' : 'new-password'}" placeholder="En az 6 karakter"></label>
+    ${authError ? `<p class="auth-error">${escapeHtml(authError)}</p>` : ''}
+    <button class="btn primary" data-act="account-submit" ${authBusy ? 'disabled' : ''}>${authBusy ? '…' : authMode === 'signin' ? 'Giriş Yap' : 'Kayıt Ol'}</button>
+    <button class="btn" data-act="account-google" ${authBusy ? 'disabled' : ''}>Google ile devam et</button>
+    <p class="auth-note">İlerlemen bu hesaba kaydedilir; başka cihazdan aynı hesapla girip devam edebilirsin.</p>`;
+}
 
 function bannerView(t: TripSummary): string {
   const where = t.zone ? ZONES[t.zone].name : 'Boğaz';
