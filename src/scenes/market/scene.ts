@@ -5,7 +5,6 @@ import { SPECIES } from '../../app/species';
 import { ZONES } from '../../app/zones';
 import { VARIETY_MAX, sellCatch, varietyMultiplier } from '../../app/progress';
 import { money, signedMoney } from '../../app/format';
-import { CAT_SVG } from './cat';
 
 const times = (v: number): string => `×${v.toFixed(1)}`;
 
@@ -79,7 +78,7 @@ export const marketScene: SceneFactory<MarketIn, MarketOut> = (root, input) => {
       <div class="bz-body" data-el="body">${receipt(true)}</div>
       <p class="bz-cat-note" data-el="note" hidden></p>
       <button class="btn primary bz-done" data-act="done" style="--i:${sale.lines.length + 1}">Limana Dön</button>
-      <button class="bz-cat" data-act="shoo" aria-label="Kediyi kovala" hidden>${CAT_SVG}</button>
+      <button class="bz-cat" data-act="shoo" aria-label="Kediyi kovala" hidden>🐈</button>
     </div>`;
 
   const el = (name: string): HTMLElement => root.querySelector(`[data-el="${name}"]`) as HTMLElement;

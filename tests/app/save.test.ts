@@ -7,7 +7,7 @@ describe('kayıt', () => {
     expect(p).toEqual(defaultProfile());
     expect(p.zones).toEqual({ kiyi: true, bogaz: false, cukur: false, marmara: false });
     expect(p.rod).toBe('kamis');
-    expect(p.bait).toBe('ekmek');
+    expect(p.baitSlots).toEqual(['ekmek']);
   });
 
   it('bozuk kayıt varsayılana döner', () => {
@@ -26,7 +26,8 @@ describe('kayıt', () => {
         rods: { karbon: true, kamis: false, uzay: true },
         rod: 'derin',
         baits: { karides: true },
-        bait: 'karides',
+        hookCount: 99,
+        baitSlots: ['yunus'],
         lastZone: 'marmara',
         logbook: { hamsi: { count: 5 }, yunus: { count: 2 }, lufer: { count: 0 } },
         settings: { sound: 'evet', colorblind: true },
@@ -37,9 +38,12 @@ describe('kayıt', () => {
     expect(p.zones.kiyi).toBe(true);
     expect(p.zones.bogaz).toBe(true);
     expect(p.rods).toEqual({ kamis: true, bambu: false, karbon: true, makarali: false, derin: false });
-    // Sahip olunmayan olta seçilemez; sahip olunan yem seçilir.
+    // Sahip olunmayan olta seçilemez.
     expect(p.rod).toBe('kamis');
-    expect(p.bait).toBe('karides');
+    expect(p.baits).toMatchObject({ ekmek: true, karides: true });
+    // İğne sayısı 3'e sıkıştırılır; geçersiz yem yerine sahip olunan yem (ekmek) konur.
+    expect(p.hookCount).toBe(3);
+    expect(p.baitSlots).toEqual(['ekmek', 'ekmek', 'ekmek']);
     expect(p.lastZone).toBe('kiyi');
     expect(p.logbook).toEqual({ hamsi: { count: 5 } });
     expect(p.settings).toEqual({ sound: true, haptics: true });
@@ -53,7 +57,7 @@ describe('kayıt', () => {
     p.rods.bambu = true;
     p.rod = 'bambu';
     p.baits.solucan = true;
-    p.bait = 'solucan';
+    p.baitSlots = ['solucan'];
     p.logbook.lufer = { count: 3 };
     p.settings.sound = false;
     p.night = true;

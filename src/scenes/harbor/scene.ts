@@ -11,23 +11,29 @@ import {
   buyBait,
   buyBoat,
   buyHook,
+  buyHookSlot,
   buyLine,
   buyRod,
   buyZone,
   canBuyBait,
   canBuyBoat,
   canBuyHook,
+  canBuyHookSlot,
   canBuyLine,
   canBuyRod,
   canBuyZone,
+  nextHookSlotPrice,
+  setBaitSlot,
 } from '../../app/progress';
 import { money } from '../../app/format';
 import { SKYLINE_SVG } from './skyline';
+import { bindBaitDrag } from './dnd';
 
-type Tab = 'oyna' | 'dukkan' | 'defter';
+type Tab = 'oyna' | 'donanim' | 'dukkan' | 'defter';
 
 const TABS: [Tab, string][] = [
   ['oyna', 'Oyna'],
+  ['donanim', 'Donanım'],
   ['dukkan', 'Dükkân'],
   ['defter', 'Defter'],
 ];
@@ -64,7 +70,7 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
         <nav class="tabs">
           ${TABS.map(([id, label]) => `<button class="tab ${tab === id ? 'on' : ''}" data-act="tab" data-arg="${id}">${label}</button>`).join('')}
         </nav>
-        <div class="tab-body">${tab === 'oyna' ? playView(p, zone, input.weather) : tab === 'dukkan' ? shopView(p) : logView(p)}</div>
+        <div class="tab-body">${tab === 'oyna' ? playView(p, zone, input.weather) : tab === 'donanim' ? donanimView(p) : tab === 'dukkan' ? shopView(p) : logView(p)}</div>
       </div>`;
     root.scrollTop = scroll;
   };
@@ -112,6 +118,10 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
   };
 
   const offAuth = app.onAuth(() => render());
+
+  const offDrag = bindBaitDrag(root, (slot, baitId) => {
+    if (commit(setBaitSlot(app.profile, slot, baitId))) render();
+  });
 
   const off = onAction(root, (act, arg) => {
     if (finished) return;
@@ -163,9 +173,6 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
       case 'duration':
         commit({ ...p, fishSeconds: Number(arg) });
         break;
-      case 'use-bait':
-        if (p.baits[arg as BaitId]) commit({ ...p, bait: arg as BaitId });
-        break;
       case 'buy-zone':
         if (commit(buyZone(p, arg as ZoneId))) zone = arg as ZoneId;
         break;
@@ -183,6 +190,9 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
         break;
       case 'buy-bait':
         commit(buyBait(p, arg as BaitId));
+        break;
+      case 'buy-hookslot':
+        commit(buyHookSlot(p));
         break;
       case 'play':
         finished = true;
@@ -203,6 +213,7 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
     destroy: () => {
       off();
       offAuth();
+      offDrag();
     },
   };
 };
@@ -285,7 +296,6 @@ function zoneChips(p: Profile, selected: ZoneId): string {
 function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
   const weather = WEATHER[weatherId];
   const z = ZONES[zone];
-  const bait = BAITS[p.bait];
   const line = LINES[p.line];
   const boat = BOATS[p.boat];
   const rods = ROD_ORDER.filter((id) => p.rods[id])
@@ -296,9 +306,6 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
     .join('');
   const hooks = HOOK_ORDER.filter((id) => p.hooks[id])
     .map((id) => `<button class="chip ${id === p.hook ? 'on' : ''}" data-act="use-hook" data-arg="${id}">${HOOKS[id].name}</button>`)
-    .join('');
-  const baits = BAIT_ORDER.filter((id) => p.baits[id])
-    .map((id) => `<button class="chip ${id === p.bait ? 'on' : ''}" data-act="use-bait" data-arg="${id}">${BAITS[id].name}</button>`)
     .join('');
   const boats = BOAT_ORDER.filter((id) => p.boats[id])
     .map((id) => `<button class="chip ${id === p.boat ? 'on' : ''}" data-act="use-boat" data-arg="${id}">${BOATS[id].name}</button>`)
@@ -323,8 +330,6 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
       <div class="chips wrap">${lines}</div>
       <div class="row-label">İğne</div>
       <div class="chips wrap">${hooks}</div>
-      <div class="row-label">Yem</div>
-      <div class="chips wrap">${baits}</div>
       <div class="row-label">Tekne</div>
       <div class="chips wrap">${boats}</div>
       <div class="row-label">Zaman</div>
@@ -335,9 +340,37 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
       <div class="row-label">Süre</div>
       <div class="chips">${durations}</div>
       <p class="forecast ${weather.id}">${weather.icon} Hava: <b>${weather.name}</b>. ${weather.desc}${p.night ? `<br>${NIGHT.icon} ${NIGHT.desc}` : ''}</p>
-      <p class="mode-meta">${reach} m'ye kadar inersin${depthNote}. ${bait.name}: ${bait.desc.toLowerCase()}. Kova: en fazla ${boat.capacity} balık.</p>
+      <p class="mode-meta">${reach} m'ye kadar inersin${depthNote}. Takılı yemler: ${p.baitSlots.map((id) => `${BAITS[id].icon} ${BAITS[id].name}`).join(', ')} <button class="link-btn" data-act="tab" data-arg="donanim">(Donanımı düzenle)</button>. Kova: en fazla ${boat.capacity} balık.</p>
       <button class="btn primary" data-act="play">Oltayı At</button>
     </section>`;
+}
+
+function donanimView(p: Profile): string {
+  const slots = p.baitSlots
+    .map(
+      (id, i) => `
+      <div class="hook-slot" data-slot="${i}">
+        <span class="hook-slot-icon">🪝</span>
+        <span class="hook-slot-bait">${BAITS[id].icon} ${BAITS[id].name}</span>
+      </div>`,
+    )
+    .join('');
+  const nextPrice = nextHookSlotPrice(p);
+  const addSlot =
+    nextPrice !== null
+      ? `<button class="hook-slot locked" data-act="buy-hookslot" ${canBuyHookSlot(p) ? '' : 'disabled'}>
+          <span class="hook-slot-icon">🔒</span>
+          <span class="hook-slot-bait">+ İğne · ${money(nextPrice)}</span>
+        </button>`
+      : '';
+  const tray = BAIT_ORDER.filter((id) => p.baits[id])
+    .map((id) => `<div class="bait-chip" data-drag-bait="${id}">${BAITS[id].icon} ${BAITS[id].name}</div>`)
+    .join('');
+  return `
+    <p class="rig-note">Bir yemi sürükleyip bir iğneye bırak; her iğne kendi yemiyle balık çeker. Ne kadar çok iğnen olursa o kadar çeşitli balık gelir.</p>
+    <div class="rig-hooks">${slots}${addSlot}</div>
+    <div class="row-label">Yemlerin</div>
+    <div class="rig-tray">${tray}</div>`;
 }
 
 function shopRow(title: string, lines: string[], action: string): string {
@@ -376,9 +409,9 @@ function shopView(p: Profile): string {
   const baits = BAIT_ORDER.map((id) => {
     const b = BAITS[id];
     const action = p.baits[id]
-      ? `<span class="maxed">${p.bait === id ? 'Takılı' : 'Sende'}</span>`
+      ? `<span class="maxed">${p.baitSlots.includes(id) ? 'Takılı' : 'Sende'}</span>`
       : `<button class="btn buy" data-act="buy-bait" data-arg="${id}" ${canBuyBait(p, id) ? '' : 'disabled'}>${money(b.price)}</button>`;
-    return shopRow(b.name, [b.desc], action);
+    return shopRow(`${b.icon} ${b.name}`, [b.desc], action);
   }).join('');
 
   const boats = BOAT_ORDER.map((id) => {

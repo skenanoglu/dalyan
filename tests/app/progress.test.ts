@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { applyTrip, buyBait, buyRod, buyZone, canBuyZone, sellCatch, unitPrice, varietyMultiplier } from '../../src/app/progress';
+import {
+  applyTrip,
+  buyBait,
+  buyHookSlot,
+  buyRod,
+  buyZone,
+  canBuyHookSlot,
+  canBuyZone,
+  nextHookSlotPrice,
+  sellCatch,
+  setBaitSlot,
+  unitPrice,
+  varietyMultiplier,
+} from '../../src/app/progress';
 import { defaultProfile } from '../../src/app/save';
 import { BAITS, LINES, LINE_ORDER, RODS } from '../../src/app/gear';
 import { afterTheft, catTarget } from '../../src/scenes/market/scene';
@@ -66,22 +79,30 @@ describe('dükkân', () => {
     expect(BAITS.ekmek.price).toBe(0);
   });
 
-  it('olta ve yem alınınca hemen kullanılır; sahip olunan tekrar alınmaz', () => {
+  it('kademeler sırayla alınır: bir öncekine sahip olmadan atlanamaz', () => {
     const p = defaultProfile();
-    p.money = 1000;
-    const withRod = buyRod(p, 'karbon')!;
-    expect(withRod.money).toBe(100);
+    p.money = 1200;
+    expect(buyRod(p, 'karbon')).toBeNull();
+    const withBambu = buyRod(p, 'bambu')!;
+    expect(withBambu.money).toBe(950);
+    const withRod = buyRod(withBambu, 'karbon')!;
+    expect(withRod.money).toBe(50);
     expect(withRod.rods.karbon).toBe(true);
     expect(withRod.rod).toBe('karbon');
     expect(buyRod(withRod, 'karbon')).toBeNull();
     expect(buyRod(withRod, 'derin')).toBeNull();
+  });
 
-    const withBait = buyBait(withRod, 'solucan');
+  it('yem alınınca sahip olunur; sürükleyip bir iğneye takana kadar donanıma girmez', () => {
+    const p = defaultProfile();
+    p.money = 100;
+    const withBait = buyBait(p, 'solucan');
     expect(withBait).toBeNull();
-    const richer = { ...withRod, money: 600 };
+    const richer = { ...p, money: 600 };
     const b = buyBait(richer, 'solucan')!;
     expect(b.money).toBe(100);
-    expect(b.bait).toBe('solucan');
+    expect(b.baits.solucan).toBe(true);
+    expect(b.baitSlots).toEqual(['ekmek']);
   });
 
   it('bölgeler sırayla ve parayla açılır', () => {
@@ -95,6 +116,38 @@ describe('dükkân', () => {
     const rich = { ...defaultProfile(), money: 1e9 };
     expect(canBuyZone(rich, 'cukur')).toBe(false);
     expect(canBuyZone(rich, 'kiyi')).toBe(false);
+  });
+});
+
+describe('iğne sayısı ve yem yerleşimi', () => {
+  it('yeni iğne çok pahalıdır; en fazla 3 iğneye kadar eklenir', () => {
+    const p = defaultProfile();
+    expect(p.hookCount).toBe(1);
+    expect(nextHookSlotPrice(p)).toBe(20000);
+    expect(canBuyHookSlot(p)).toBe(false);
+    expect(buyHookSlot(p)).toBeNull();
+
+    const rich = { ...p, money: 20000 };
+    const withSecond = buyHookSlot(rich)!;
+    expect(withSecond.money).toBe(0);
+    expect(withSecond.hookCount).toBe(2);
+    expect(withSecond.baitSlots).toEqual(['ekmek', 'ekmek']);
+
+    const richer = { ...withSecond, money: 60000 };
+    const withThird = buyHookSlot(richer)!;
+    expect(withThird.hookCount).toBe(3);
+    expect(nextHookSlotPrice(withThird)).toBeNull();
+    expect(buyHookSlot({ ...withThird, money: 1e9 })).toBeNull();
+  });
+
+  it('yalnızca sahip olunan bir yem, sahip olunan bir iğneye takılabilir', () => {
+    const p = defaultProfile();
+    expect(setBaitSlot(p, 0, 'karides')).toBeNull(); // sahip değil
+    expect(setBaitSlot(p, 1, 'ekmek')).toBeNull(); // ikinci iğne yok
+    const withSolucan = buyBait({ ...p, money: 500 }, 'solucan')!;
+    const withKarides = buyBait({ ...withSolucan, money: 2000 }, 'karides')!;
+    const equipped = setBaitSlot(withKarides, 0, 'karides')!;
+    expect(equipped.baitSlots).toEqual(['karides']);
   });
 });
 

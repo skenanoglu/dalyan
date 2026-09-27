@@ -49,6 +49,7 @@ export interface Boat {
 export interface Bait {
   id: BaitId;
   name: string;
+  icon: string;
   price: number;
   desc: string;
   likes: SpeciesId[];
@@ -97,14 +98,24 @@ export const BOATS: Record<BoatId, Boat> = {
 export const BOAT_ORDER: BoatId[] = ['sandal', 'kayik', 'motor', 'yat', 'gemi'];
 
 export const BAITS: Record<BaitId, Bait> = {
-  ekmek: { id: 'ekmek', name: 'Ekmek', price: 0, desc: 'Hamsi ve istavrit bayılır', likes: ['hamsi', 'istavrit'] },
-  solucan: { id: 'solucan', name: 'Solucan', price: 500, desc: 'Çipura, levrek, palyaço', likes: ['cipura', 'levrek', 'palyaco'] },
-  karides: { id: 'karides', name: 'Karides', price: 2000, desc: 'Lüfer, mezgit, palamut', likes: ['lufer', 'mezgit', 'palamut'] },
-  sardalya: { id: 'sardalya', name: 'Sardalya', price: 6000, desc: 'Kalkan ve kılıç balığı', likes: ['kalkan', 'kilic'] },
-  kalamar: { id: 'kalamar', name: 'Kalamar', price: 15000, desc: 'Fener balığı ve altın balık', likes: ['fener', 'altin'] },
+  ekmek: { id: 'ekmek', name: 'Ekmek', icon: '🍞', price: 0, desc: 'Hamsi ve istavrit bayılır', likes: ['hamsi', 'istavrit'] },
+  solucan: { id: 'solucan', name: 'Solucan', icon: '🪱', price: 500, desc: 'Çipura, levrek, palyaço', likes: ['cipura', 'levrek', 'palyaco'] },
+  karides: { id: 'karides', name: 'Karides', icon: '🦐', price: 2000, desc: 'Lüfer, mezgit, palamut', likes: ['lufer', 'mezgit', 'palamut'] },
+  sardalya: { id: 'sardalya', name: 'Sardalya', icon: '🐟', price: 6000, desc: 'Kalkan ve kılıç balığı', likes: ['kalkan', 'kilic'] },
+  kalamar: { id: 'kalamar', name: 'Kalamar', icon: '🦑', price: 15000, desc: 'Fener balığı ve altın balık', likes: ['fener', 'altin'] },
 };
 
 export const BAIT_ORDER: BaitId[] = ['ekmek', 'solucan', 'karides', 'sardalya', 'kalamar'];
+
+/** Takılı yemlerin sevdiği türlerin birleşimi (tekrarsız); her iğne kendi yemiyle çeker. */
+export function unionBaitLikes(ids: BaitId[]): SpeciesId[] {
+  return Array.from(new Set(ids.flatMap((id) => BAITS[id].likes)));
+}
+
+/** Oltaya takılabilecek en fazla iğne (fiziksel iğne sayısı; kalite kademesinden ayrı). */
+export const MAX_HOOK_SLOTS = 3;
+/** Yeni bir iğne eklemenin fiyatı (hedef iğne sayısına göre); çok pahalı. */
+export const HOOK_SLOT_PRICE: Record<number, number> = { 2: 20000, 3: 60000 };
 
 export const isRodId = (v: unknown): v is RodId => typeof v === 'string' && v in RODS;
 export const isBaitId = (v: unknown): v is BaitId => typeof v === 'string' && v in BAITS;

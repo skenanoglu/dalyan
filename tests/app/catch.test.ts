@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { catchCount, parseCatch } from '../../src/app/catch';
 import { SPECIES, speciesInReach } from '../../src/app/species';
 import { fakeCatch } from '../../src/scenes/fishing/fake';
-import type { FishingIn, SpeciesId } from '../../src/app/types';
+import type { BaitId, FishingIn, SpeciesId } from '../../src/app/types';
 
 const input = (extra: Partial<FishingIn> = {}): FishingIn => ({
   zone: 'kiyi',
   rod: 'kamis',
-  bait: 'ekmek',
+  baitSlots: ['ekmek'],
   weather: 'gunes',
   night: false,
   seed: 1,
@@ -45,11 +45,11 @@ describe('sahte avlar (test ve debug)', () => {
 
   it('olta: yem sevdiği türleri çeker', () => {
     const liked: SpeciesId[] = ['lufer', 'mezgit', 'palamut'];
-    const share = (bait: FishingIn['bait']): number => {
+    const share = (bait: BaitId): number => {
       let hit = 0;
       let all = 0;
       for (let seed = 1; seed <= 300; seed++) {
-        const c = fakeCatch(input({ zone: 'bogaz', rod: 'karbon', bait, seed }));
+        const c = fakeCatch(input({ zone: 'bogaz', rod: 'karbon', baitSlots: [bait], seed }));
         for (const [id, n] of Object.entries(c)) {
           all += n;
           if (liked.includes(id as SpeciesId)) hit += n;

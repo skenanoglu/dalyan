@@ -1,10 +1,10 @@
 import type { BaitId, BoatId, HookId, LineId, RodId, SpeciesId, ZoneId } from './types';
 import { ZONE_ORDER, isZoneId } from './zones';
 import { SPECIES_ORDER } from './species';
-import { BAIT_ORDER, BOAT_ORDER, HOOK_ORDER, LINE_ORDER, ROD_ORDER, isBaitId, isBoatId, isHookId, isLineId, isRodId } from './gear';
+import { BAIT_ORDER, BOAT_ORDER, HOOK_ORDER, LINE_ORDER, MAX_HOOK_SLOTS, ROD_ORDER, isBaitId, isBoatId, isHookId, isLineId, isRodId } from './gear';
 
 export const SAVE_KEY = 'dalyan.profil';
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 /** Balık tutma sahnesinde seçilebilecek av süreleri (sn). */
 export const FISH_SECONDS_OPTIONS = [15, 30, 45, 60, 90] as const;
@@ -31,7 +31,9 @@ export interface Profile {
   hooks: Record<HookId, boolean>;
   hook: HookId;
   baits: Record<BaitId, boolean>;
-  bait: BaitId;
+  /** Oltadaki iğne sayısı (1-3) ve her iğneye takılı yem. */
+  hookCount: number;
+  baitSlots: BaitId[];
   boats: Record<BoatId, boolean>;
   boat: BoatId;
   /** Son seçilen av süresi (sn). */
@@ -59,7 +61,8 @@ export function defaultProfile(): Profile {
     hooks: flags(HOOK_ORDER, ['adi']),
     hook: 'adi',
     baits: flags(BAIT_ORDER, ['ekmek']),
-    bait: 'ekmek',
+    hookCount: 1,
+    baitSlots: ['ekmek'],
     boats: flags(BOAT_ORDER, ['sandal']),
     boat: 'sandal',
     fishSeconds: DEFAULT_FISH_SECONDS,
@@ -109,7 +112,11 @@ export function parseProfile(raw: string | null): Profile {
   if (isHookId(data.hook) && p.hooks[data.hook]) p.hook = data.hook;
   if (isObj(data.baits)) for (const b of BAIT_ORDER) p.baits[b] = bool(data.baits[b], p.baits[b]);
   p.baits.ekmek = true;
-  if (isBaitId(data.bait) && p.baits[data.bait]) p.bait = data.bait;
+  p.hookCount = Math.min(MAX_HOOK_SLOTS, Math.max(1, int(data.hookCount) ?? 1));
+  p.baitSlots = Array.from({ length: p.hookCount }, (_, i) => {
+    const v = Array.isArray(data.baitSlots) ? data.baitSlots[i] : null;
+    return isBaitId(v) && p.baits[v] ? v : 'ekmek';
+  });
   if (isObj(data.boats)) for (const bt of BOAT_ORDER) p.boats[bt] = bool(data.boats[bt], p.boats[bt]);
   p.boats.sandal = true;
   if (isBoatId(data.boat) && p.boats[data.boat]) p.boat = data.boat;

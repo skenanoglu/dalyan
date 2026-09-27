@@ -2,15 +2,20 @@ import type { BaitId, BoatId, Catch, HookId, LineId, MarketOut, RodId, SaleLine,
 import type { Profile } from './save';
 import { SPECIES, SPECIES_ORDER } from './species';
 import { ZONES, ZONE_ORDER } from './zones';
-import { BAITS, BOATS, HOOKS, LINES, RODS } from './gear';
+import { BAITS, BAIT_ORDER, BOATS, BOAT_ORDER, HOOKS, HOOK_ORDER, HOOK_SLOT_PRICE, LINES, LINE_ORDER, MAX_HOOK_SLOTS, RODS, ROD_ORDER } from './gear';
 import { catchCount } from './catch';
+
+/** Bir kademe (olta/misina/iğne/tekne/yem) yalnızca bir öncekine sahipsen alınabilir; en ucuz kademe her zaman serbesttir. */
+function prevTierOwned<T extends string>(owned: Record<T, boolean>, order: readonly T[], id: T): boolean {
+  const i = order.indexOf(id);
+  return i <= 0 || owned[order[i - 1]];
+}
 
 // ---------- Bölgeler ----------
 
 export function canBuyZone(p: Profile, id: ZoneId): boolean {
   if (p.zones[id]) return false;
-  const i = ZONE_ORDER.indexOf(id);
-  if (i > 0 && !p.zones[ZONE_ORDER[i - 1]]) return false;
+  if (!prevTierOwned(p.zones, ZONE_ORDER, id)) return false;
   return p.money >= ZONES[id].price;
 }
 
@@ -24,8 +29,8 @@ export function buyZone(p: Profile, id: ZoneId): Profile | null {
 
 // ---------- Olta ve yem ----------
 
-export const canBuyRod = (p: Profile, id: RodId): boolean => !p.rods[id] && p.money >= RODS[id].price;
-export const canBuyBait = (p: Profile, id: BaitId): boolean => !p.baits[id] && p.money >= BAITS[id].price;
+export const canBuyRod = (p: Profile, id: RodId): boolean => !p.rods[id] && prevTierOwned(p.rods, ROD_ORDER, id) && p.money >= RODS[id].price;
+export const canBuyBait = (p: Profile, id: BaitId): boolean => !p.baits[id] && prevTierOwned(p.baits, BAIT_ORDER, id) && p.money >= BAITS[id].price;
 
 /** Oltayı alır ve hemen eline verir. */
 export function buyRod(p: Profile, id: RodId): Profile | null {
@@ -37,21 +42,29 @@ export function buyRod(p: Profile, id: RodId): Profile | null {
   return next;
 }
 
-/** Yemi alır ve hemen takar. */
+/** Yemi alır; hangi iğneye takılacağı Donanım ekranından seçilir. */
 export function buyBait(p: Profile, id: BaitId): Profile | null {
   if (!canBuyBait(p, id)) return null;
   const next = structuredClone(p);
   next.money -= BAITS[id].price;
   next.baits[id] = true;
-  next.bait = id;
+  return next;
+}
+
+/** Bir iğneye (slot) sahip olunan bir yemi takar. */
+export function setBaitSlot(p: Profile, slot: number, id: BaitId): Profile | null {
+  if (slot < 0 || slot >= p.hookCount || !p.baits[id]) return null;
+  const next = structuredClone(p);
+  next.baitSlots = [...next.baitSlots];
+  next.baitSlots[slot] = id;
   return next;
 }
 
 // ---------- Misina, iğne ve tekne ----------
 
-export const canBuyLine = (p: Profile, id: LineId): boolean => !p.lines[id] && p.money >= LINES[id].price;
-export const canBuyHook = (p: Profile, id: HookId): boolean => !p.hooks[id] && p.money >= HOOKS[id].price;
-export const canBuyBoat = (p: Profile, id: BoatId): boolean => !p.boats[id] && p.money >= BOATS[id].price;
+export const canBuyLine = (p: Profile, id: LineId): boolean => !p.lines[id] && prevTierOwned(p.lines, LINE_ORDER, id) && p.money >= LINES[id].price;
+export const canBuyHook = (p: Profile, id: HookId): boolean => !p.hooks[id] && prevTierOwned(p.hooks, HOOK_ORDER, id) && p.money >= HOOKS[id].price;
+export const canBuyBoat = (p: Profile, id: BoatId): boolean => !p.boats[id] && prevTierOwned(p.boats, BOAT_ORDER, id) && p.money >= BOATS[id].price;
 
 /** Misinayı alır ve hemen takar. */
 export function buyLine(p: Profile, id: LineId): Profile | null {
@@ -63,7 +76,7 @@ export function buyLine(p: Profile, id: LineId): Profile | null {
   return next;
 }
 
-/** İğneyi alır ve hemen takar. */
+/** İğneyi (kalite kademesi) alır ve hemen takar. */
 export function buyHook(p: Profile, id: HookId): Profile | null {
   if (!canBuyHook(p, id)) return null;
   const next = structuredClone(p);
@@ -80,6 +93,29 @@ export function buyBoat(p: Profile, id: BoatId): Profile | null {
   next.money -= BOATS[id].price;
   next.boats[id] = true;
   next.boat = id;
+  return next;
+}
+
+// ---------- Oltaya ikinci/üçüncü iğne ekleme ----------
+
+export function nextHookSlotPrice(p: Profile): number | null {
+  if (p.hookCount >= MAX_HOOK_SLOTS) return null;
+  return HOOK_SLOT_PRICE[p.hookCount + 1] ?? null;
+}
+
+export function canBuyHookSlot(p: Profile): boolean {
+  const price = nextHookSlotPrice(p);
+  return price !== null && p.money >= price;
+}
+
+/** Oltaya çok pahalıya yeni bir iğne (fiziksel slot) ekler; en fazla 3 iğne olur. */
+export function buyHookSlot(p: Profile): Profile | null {
+  const price = nextHookSlotPrice(p);
+  if (price === null || p.money < price) return null;
+  const next = structuredClone(p);
+  next.money -= price;
+  next.hookCount += 1;
+  next.baitSlots = [...next.baitSlots, 'ekmek'];
   return next;
 }
 

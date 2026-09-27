@@ -1,7 +1,7 @@
 import './fishing.css';
 import { deferred, onAction, type SceneFactory } from '../../app/scene';
 import type { FishingIn, FishingOut } from '../../app/types';
-import { BAITS, BOATS, HOOKS, LINES, RODS } from '../../app/gear';
+import { BOATS, HOOKS, LINES, RODS, unionBaitLikes } from '../../app/gear';
 import { NIGHT, WEATHER } from '../../app/weather';
 import { catchCount } from '../../app/catch';
 import { catchListHtml } from '../../ui/catch-list';
@@ -74,7 +74,7 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
     inisHizi: rod.drop,
     makara: rod.reel,
     duration: input.duration ?? 90,
-    baitLikes: BAITS[input.bait].likes,
+    baitLikes: unionBaitLikes(input.baitSlots),
     hookMaxPrice: hook.maxPrice,
     lineDurability: line.durability,
     sharkReady: Boolean(rod.sharkReady && line.sharkReady),

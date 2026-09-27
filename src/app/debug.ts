@@ -46,13 +46,24 @@ export function startDebugScene(app: App, params: URLSearchParams): boolean {
     olta: () =>
       app.show(
         fishingScene,
-        { zone, rod: app.profile.rod, bait: app.profile.bait, line: app.profile.line, hook: app.profile.hook, boat: app.profile.boat, duration: app.profile.fishSeconds, weather, night, seed },
+        {
+          zone,
+          rod: app.profile.rod,
+          baitSlots: app.profile.baitSlots,
+          line: app.profile.line,
+          hook: app.profile.hook,
+          boat: app.profile.boat,
+          duration: app.profile.fishSeconds,
+          weather,
+          night,
+          seed,
+        },
         'Olta',
       ),
     pazar: () => {
       const caught =
         parseCatch(params.get('kova')) ??
-        fakeCatch({ zone, rod: app.profile.rod, bait: app.profile.bait, line: app.profile.line, weather, night, seed });
+        fakeCatch({ zone, rod: app.profile.rod, baitSlots: app.profile.baitSlots, line: app.profile.line, weather, night, seed });
       return app.show(marketScene, { catch: caught, zone }, 'Pazar');
     },
   };

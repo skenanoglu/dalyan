@@ -48,7 +48,8 @@ export interface HarborOut {
 export interface FishingIn {
   zone: ZoneId;
   rod: RodId;
-  bait: BaitId;
+  /** İğnelere takılı yemler (1-3 adet); her biri kendi sevdiği türleri çeker. */
+  baitSlots: BaitId[];
   /** Verilmezse en zayıf misina/iğne/tekne varsayılır (ör. sahte av/testler). */
   line?: LineId;
   hook?: HookId;

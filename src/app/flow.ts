@@ -21,10 +21,10 @@ export async function runGame(app: App): Promise<void> {
 
 export async function runTrip(app: App, choice: HarborOut, weather: WeatherId): Promise<TripSummary> {
   const seed = randomSeed();
-  const { rod, bait, line, hook, boat, fishSeconds } = app.profile;
+  const { rod, baitSlots, line, hook, boat, fishSeconds } = app.profile;
   const out = await app.show(
     fishingScene,
-    { zone: choice.zone, rod, bait, line, hook, boat, duration: fishSeconds, weather, night: choice.night, seed },
+    { zone: choice.zone, rod, baitSlots, line, hook, boat, duration: fishSeconds, weather, night: choice.night, seed },
     `Olta · ${ZONES[choice.zone].name}`,
   );
 
