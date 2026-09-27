@@ -1,3 +1,4 @@
+import type { BoatId } from '../../app/types';
 import { SURFACE, TAU, W, clamp, lerp, type Fish, type FishingWorld, type HookPoint } from './world';
 import { drawCatchable } from './fishart';
 import { NIGHT } from '../../app/weather';
@@ -61,6 +62,28 @@ export interface DrawOptions {
   /** Üst bilgi şeridinin altı (dünya birimi); yüzey şeridi buraya çizilir. */
   topInset: number;
 }
+
+interface BoatVisual {
+  /** Gövde en genişliği (dünya birimi); tekne büyüdükçe artar. */
+  half: number;
+  hull: string;
+  deck: string;
+  trim: string;
+  text: string;
+  cabin: boolean;
+  cabinColor: string;
+  antenna: boolean;
+  funnel: boolean;
+}
+
+/** Tekne satın alındıkça görünümü de değişsin: boy, renk ve üst yapı tekneye göre. */
+const BOAT_VISUALS: Record<BoatId, BoatVisual> = {
+  sandal: { half: 54, hull: '#8b5a2b', deck: '#d9b382', trim: '#5a3a1a', text: '#fff', cabin: false, cabinColor: '#2e6db4', antenna: false, funnel: false },
+  kayik: { half: 68, hull: '#c0392b', deck: '#ecf0f1', trim: '#8b5a2b', text: '#fff', cabin: true, cabinColor: '#2e6db4', antenna: false, funnel: false },
+  motor: { half: 80, hull: '#2e6db4', deck: '#ecf0f1', trim: '#1c4d80', text: '#fff', cabin: true, cabinColor: '#34495e', antenna: true, funnel: false },
+  yat: { half: 96, hull: '#f5f6fa', deck: '#dfe6e9', trim: '#2c3e50', text: '#2c3e50', cabin: true, cabinColor: '#2c3e50', antenna: true, funnel: false },
+  gemi: { half: 116, hull: '#5d6d7e', deck: '#95a5a6', trim: '#2c3e50', text: '#fff', cabin: true, cabinColor: '#34495e', antenna: true, funnel: true },
+};
 
 export class FishingRenderer {
   private sky: Strip | null = null;
@@ -412,24 +435,37 @@ export class FishingRenderer {
 
   // ---------- Tekne, olta, efektler ----------
   private boat(g: Ctx, w: FishingWorld): void {
+    const v = BOAT_VISUALS[w.boatId];
     g.save();
     g.translate(w.boat.x, w.boatY());
     g.rotate(w.boat.tilt);
 
-    g.fillStyle = '#95a5a6';
-    g.beginPath();
-    g.moveTo(28, -36);
-    g.lineTo(50, -36);
-    g.lineTo(47, -16);
-    g.lineTo(31, -16);
-    g.closePath();
-    g.fill();
-    g.fillStyle = '#7f8c8d';
-    g.fillRect(27, -38, 24, 4);
+    if (v.antenna) {
+      g.fillStyle = '#95a5a6';
+      g.beginPath();
+      g.moveTo(28, -36);
+      g.lineTo(50, -36);
+      g.lineTo(47, -16);
+      g.lineTo(31, -16);
+      g.closePath();
+      g.fill();
+      g.fillStyle = '#7f8c8d';
+      g.fillRect(27, -38, 24, 4);
+    }
 
-    g.fillStyle = '#2e6db4';
-    rr(g, -28, -54, 32, 40, 9);
-    g.fill();
+    if (v.funnel) {
+      g.fillStyle = v.trim;
+      rr(g, 36, -74, 15, 32, 4);
+      g.fill();
+      g.fillStyle = '#e67e22';
+      g.fillRect(36, -74, 15, 5);
+    }
+
+    if (v.cabin) {
+      g.fillStyle = v.cabinColor;
+      rr(g, -28, -54, 32, 40, 9);
+      g.fill();
+    }
     g.fillStyle = '#f2c79b';
     circle(g, -12, -66, 12);
     g.fillStyle = 'rgba(230,120,100,.5)';
@@ -440,31 +476,35 @@ export class FishingRenderer {
     g.beginPath();
     g.ellipse(-12, -75, 19, 5, 0, 0, TAU);
     g.fill();
-    rr(g, -22, -90, 20, 16, 6);
-    g.fill();
-    g.fillStyle = '#e67e22';
-    g.fillRect(-22, -79, 20, 3);
+    if (v.cabin) {
+      rr(g, -22, -90, 20, 16, 6);
+      g.fill();
+      g.fillStyle = '#e67e22';
+      g.fillRect(-22, -79, 20, 3);
+    }
 
-    g.fillStyle = '#c0392b';
+    const half = v.half;
+    const bow = half - 18;
+    g.fillStyle = v.hull;
     g.beginPath();
-    g.moveTo(-80, -20);
-    g.lineTo(80, -20);
-    g.lineTo(62, 14);
-    g.quadraticCurveTo(0, 22, -62, 14);
+    g.moveTo(-half, -20);
+    g.lineTo(half, -20);
+    g.lineTo(bow, 14);
+    g.quadraticCurveTo(0, 22, -bow, 14);
     g.closePath();
     g.fill();
-    g.fillStyle = '#ecf0f1';
+    g.fillStyle = v.deck;
     g.beginPath();
-    g.moveTo(-79, -18);
-    g.lineTo(79, -18);
-    g.lineTo(75, -10);
-    g.lineTo(-75, -10);
+    g.moveTo(-half + 1, -18);
+    g.lineTo(half - 1, -18);
+    g.lineTo(half - 5, -10);
+    g.lineTo(-half + 5, -10);
     g.closePath();
     g.fill();
-    g.fillStyle = '#8b5a2b';
-    rr(g, -84, -24, 168, 6, 3);
+    g.fillStyle = v.trim;
+    rr(g, -half - 4, -24, half * 2 + 8, 6, 3);
     g.fill();
-    g.fillStyle = '#fff';
+    g.fillStyle = v.text;
     g.font = 'bold 11px "Segoe UI", Arial, sans-serif';
     g.textAlign = 'center';
     g.textBaseline = 'middle';

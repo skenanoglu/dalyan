@@ -80,6 +80,7 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
     lineDurability: line.durability,
     sharkReady: Boolean(rod.sharkReady && line.sharkReady),
     bucketCap: boat.capacity,
+    boatId: input.boat ?? 'sandal',
     weather: input.weather,
     night: input.night,
   });

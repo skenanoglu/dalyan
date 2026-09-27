@@ -1,4 +1,4 @@
-import type { Catch, SpeciesId, WeatherId, ZoneId } from '../../app/types';
+import type { BoatId, Catch, SpeciesId, WeatherId, ZoneId } from '../../app/types';
 import { NIGHT, WEATHER, type WeatherDef } from '../../app/weather';
 import { BAIT_PULL } from '../../app/gear';
 import { ZONES } from '../../app/zones';
@@ -80,6 +80,8 @@ export interface WorldOptions {
   sharkReady?: boolean;
   /** Kovaya (çöp dahil) sığacak en fazla balık; tekneye göre değişir. */
   bucketCap?: number;
+  /** Teknenin görünümü (bkz. draw.ts); varsayılan sandal. */
+  boatId?: BoatId;
   /** Hava (varsayılan güneşli). */
   weather?: WeatherId;
   /** Gece mi (varsayılan gündüz). */
@@ -107,6 +109,7 @@ export class FishingWorld {
   readonly lineDurability: number;
   readonly sharkReady: boolean;
   readonly bucketCap: number;
+  readonly boatId: BoatId;
   readonly weather: WeatherDef;
   readonly night: boolean;
 
@@ -167,6 +170,7 @@ export class FishingWorld {
     this.lineDurability = o.lineDurability ?? 0;
     this.sharkReady = o.sharkReady ?? false;
     this.bucketCap = o.bucketCap ?? Infinity;
+    this.boatId = o.boatId ?? 'sandal';
     this.weather = WEATHER[o.weather ?? 'gunes'];
     this.night = o.night ?? false;
     const hookCount = Math.max(1, Math.min(3, Math.round(o.hookCount ?? 1)));
