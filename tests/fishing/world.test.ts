@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../../src/app/rng';
-import { FishingWorld, HOOK_TOP, SURFACE, type Input, type WorldOptions } from '../../src/scenes/fishing/world';
+import { FishingWorld, HOOK_GAP, HOOK_TOP, SURFACE, type Input, type WorldOptions } from '../../src/scenes/fishing/world';
 import { TYPES } from '../../src/scenes/fishing/data';
 
 const idle: Input = { left: false, right: false, up: false, down: false };
@@ -42,6 +42,11 @@ function empty(extra: Partial<WorldOptions> = {}): FishingWorld {
 function putAtHook(w: FishingWorld, key: string): void {
   const t = TYPES.find((x) => x.key === key)!;
   w.fishes.push({ t, x: w.hook.x, y: w.hook.y, baseY: w.hook.y, dir: 1, speed: 0, phase: 0, caught: false, cool: 0 });
+}
+
+function putAt(w: FishingWorld, key: string, x: number, y: number): void {
+  const t = TYPES.find((k) => k.key === key)!;
+  w.fishes.push({ t, x, y, baseY: y, dir: 1, speed: 0, phase: 0, caught: false, cool: 0 });
 }
 
 describe('av dünyası', () => {
@@ -168,6 +173,26 @@ describe('av dünyası', () => {
       return fish.filter((f) => f.t.key === 'lufer' || f.t.key === 'palamut').length / fish.length;
     };
     expect(share(['lufer', 'palamut'])).toBeGreaterThan(share([]) + 0.1);
+  });
+
+  it('birden çok iğne kısa aralıkla ana iğneyi izler', () => {
+    const w = empty({ hookCount: 3 });
+    run(w, 0.6, down);
+    expect(w.hooks).toHaveLength(3);
+    expect(w.hooks[1].y - w.hooks[0].y).toBeCloseTo(HOOK_GAP, 0);
+    expect(w.hooks[2].y - w.hooks[0].y).toBeCloseTo(HOOK_GAP * 2, 0);
+  });
+
+  it('iki iğneli oltada iki balık aynı anda takılıp kovaya girer', () => {
+    const w = empty({ hookCount: 2 });
+    run(w, 0.6, down);
+    putAt(w, 'lufer', w.hooks[0].x, w.hooks[0].y);
+    putAt(w, 'hamsi', w.hooks[1].x, w.hooks[1].y);
+    w.update(STEP, idle);
+    expect(w.hooks[0].fish?.t.key).toBe('lufer');
+    expect(w.hooks[1].fish?.t.key).toBe('hamsi');
+    run(w, 5);
+    expect(w.catch).toEqual({ lufer: 1, hamsi: 1 });
   });
 
   it('yalnızca bölgenin derinliğindeki türler doğar', () => {

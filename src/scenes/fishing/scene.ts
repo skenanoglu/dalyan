@@ -73,6 +73,7 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
     misinaM: line.depth,
     inisHizi: rod.drop,
     makara: rod.reel,
+    hookCount: input.baitSlots.length,
     duration: input.duration ?? 90,
     baitLikes: unionBaitLikes(input.baitSlots),
     hookMaxPrice: hook.maxPrice,

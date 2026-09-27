@@ -18,9 +18,9 @@ export interface Zone {
 // Derinlik, fiyat ve çarpanlar Balık Avı'nın BOLGELER tablosundan.
 export const ZONES: Record<ZoneId, Zone> = {
   kiyi: { id: 'kiyi', name: 'Sarayburnu Kıyısı', depth: 20, price: 0, priceMultiplier: 1, maxFish: 14, voyageTarget: 10 },
-  bogaz: { id: 'bogaz', name: 'Boğaz Akıntısı', depth: 40, price: 600, priceMultiplier: 1.5, maxFish: 20, voyageTarget: 20 },
-  cukur: { id: 'cukur', name: 'Derin Çukur', depth: 70, price: 3600, priceMultiplier: 2.2, maxFish: 26, voyageTarget: 30 },
-  marmara: { id: 'marmara', name: 'Marmara Dibi', depth: 110, price: 14000, priceMultiplier: 3.2, maxFish: 32, voyageTarget: 40 },
+  bogaz: { id: 'bogaz', name: 'Boğaz Akıntısı', depth: 40, price: 900, priceMultiplier: 1.5, maxFish: 20, voyageTarget: 20 },
+  cukur: { id: 'cukur', name: 'Derin Çukur', depth: 70, price: 5400, priceMultiplier: 2.2, maxFish: 26, voyageTarget: 30 },
+  marmara: { id: 'marmara', name: 'Marmara Dibi', depth: 110, price: 21000, priceMultiplier: 3.2, maxFish: 32, voyageTarget: 40 },
 };
 
 export const ZONE_ORDER: ZoneId[] = ['kiyi', 'bogaz', 'cukur', 'marmara'];

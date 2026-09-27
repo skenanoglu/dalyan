@@ -1,4 +1,4 @@
-import { HOOK_TOP, SURFACE, TAU, W, clamp, lerp, type Fish, type FishingWorld } from './world';
+import { SURFACE, TAU, W, clamp, lerp, type Fish, type FishingWorld, type HookPoint } from './world';
 import { drawCatchable } from './fishart';
 import { NIGHT } from '../../app/weather';
 
@@ -493,14 +493,21 @@ export class FishingRenderer {
 
   private lineAndHook(g: Ctx, w: FishingWorld): void {
     const tip = w.rodTip();
-    const hook = w.hook;
+    const master = w.hooks[0];
     g.strokeStyle = 'rgba(255,255,255,.8)';
     g.lineWidth = 1.2;
     g.beginPath();
     g.moveTo(tip.x, tip.y);
-    g.quadraticCurveTo(lerp(tip.x, hook.x, 0.3), lerp(tip.y, hook.y, 0.6), hook.x, hook.y - 9);
+    g.quadraticCurveTo(lerp(tip.x, master.x, 0.3), lerp(tip.y, master.y, 0.6), master.x, master.y - 9);
+    // Kısa aralıklı ek iğneler aynı misina üzerinde biraz daha derinde dizilir.
+    for (let i = 1; i < w.hooks.length; i++) g.lineTo(w.hooks[i].x, w.hooks[i].y - 9);
     g.stroke();
 
+    for (const hook of w.hooks) this.hookGear(g, w, hook);
+  }
+
+  /** Tek bir iğnenin ucu, üzerindeki balık (varsa) ve sersemleme efekti. */
+  private hookGear(g: Ctx, w: FishingWorld, hook: HookPoint): void {
     if (hook.fish) {
       const f = hook.fish;
       this.entity(g, f, f.x, f.y, f.t.junk ? 0 : -Math.PI / 2 + Math.sin(w.T * 18) * 0.25);
@@ -538,7 +545,6 @@ export class FishingRenderer {
         drawStar(g, hook.x + Math.cos(a) * 14, hook.y - 4 + Math.sin(a) * 6, 5, 2, 5, '#ffe66d');
       }
     }
-    void HOOK_TOP;
   }
 
   private flights(g: Ctx, w: FishingWorld): void {

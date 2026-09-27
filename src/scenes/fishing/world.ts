@@ -14,6 +14,8 @@ export const SURFACE = 180;
 export const HOOK_TOP = SURFACE - 30;
 export const BASE_TIME = 90;
 export const TAU = Math.PI * 2;
+/** İğneler arası kısa aralık: aynı misinaya yakın takılı birden çok iğne. */
+export const HOOK_GAP = 26;
 
 export const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
 export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
@@ -23,6 +25,13 @@ export interface Input {
   right: boolean;
   up: boolean;
   down: boolean;
+}
+
+export interface HookPoint {
+  x: number;
+  y: number;
+  fish: Fish | null;
+  stun: number;
 }
 
 export interface Fish {
@@ -57,6 +66,8 @@ export interface WorldOptions {
   misinaM: number;
   inisHizi: number;
   makara: number;
+  /** Oltadaki iğne sayısı (1-3); kısa aralıklarla aynı misinaya dizilir. */
+  hookCount?: number;
   /** Av süresi (sn). */
   duration: number;
   /** Takılı yemin sevdiği türler daha sık görünür. */
@@ -108,7 +119,8 @@ export class FishingWorld {
   camY = 0;
 
   readonly boat = { x: W / 2 - 60, vx: 0, tilt: 0 };
-  readonly hook: { x: number; y: number; fish: Fish | null; stun: number } = { x: 0, y: HOOK_TOP, fish: null, stun: 0 };
+  /** Kısa aralıklı iğneler; [0] elle kontrol edilen (üstteki), diğerleri sabit aralıkla onu izler. */
+  readonly hooks: HookPoint[];
   fishes: Fish[] = [];
   bubbles: Bubble[] = [];
   ripples: Ripple[] = [];
@@ -157,8 +169,15 @@ export class FishingWorld {
     this.bucketCap = o.bucketCap ?? Infinity;
     this.weather = WEATHER[o.weather ?? 'gunes'];
     this.night = o.night ?? false;
+    const hookCount = Math.max(1, Math.min(3, Math.round(o.hookCount ?? 1)));
+    const tipX = this.rodTip().x;
+    this.hooks = Array.from({ length: hookCount }, () => ({ x: tipX, y: HOOK_TOP, fish: null, stun: 0 }));
     this.scatterDecor();
-    this.hook.x = this.rodTip().x;
+  }
+
+  /** Elle kontrol edilen üstteki (ana) iğne; geri kalanı kısa aralıkla onu izler. */
+  get hook(): HookPoint {
+    return this.hooks[0];
   }
 
   // ---------- Yardımcılar ----------
@@ -243,9 +262,10 @@ export class FishingWorld {
     if (this.over) return;
     this.timeLeft = 0;
     this.over = true;
-    if (this.hook.fish) {
-      this.fishes.splice(this.fishes.indexOf(this.hook.fish), 1);
-      this.hook.fish = null;
+    for (const h of this.hooks) {
+      if (!h.fish) continue;
+      this.fishes.splice(this.fishes.indexOf(h.fish), 1);
+      h.fish = null;
     }
     this.events.push('end');
   }
@@ -344,11 +364,14 @@ export class FishingWorld {
       this.updateCamera(dt);
       if (this.timeLeft <= 0) this.end();
     } else {
-      // av bitince tekne süzülür, olta yukarı toplanır
+      // av bitince tekne süzülür, oltalar yukarı toplanır
       this.boat.vx *= 0.9;
       this.boat.tilt = Math.sin(this.T * 1.7) * 0.025;
-      this.hook.y = Math.max(HOOK_TOP, this.hook.y - 300 * dt);
-      this.hook.x += (this.rodTip().x - this.hook.x) * Math.min(1, dt * 6);
+      const tipX = this.rodTip().x;
+      for (const h of this.hooks) {
+        h.y = Math.max(HOOK_TOP, h.y - 300 * dt);
+        h.x += (tipX - h.x) * Math.min(1, dt * 6);
+      }
       this.updateCamera(dt);
     }
 
@@ -371,7 +394,7 @@ export class FishingWorld {
 
   private updateBoat(dt: number, input: Input): void {
     const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-    const maxV = this.hook.fish ? 140 : 260; // balık çekerken tekne yavaşlar
+    const maxV = this.hooks.some((h) => h.fish) ? 140 : 260; // balık çekerken tekne yavaşlar
     const b = this.boat;
     b.vx += (dir * maxV - b.vx) * Math.min(1, dt * 4);
     // Fırtınada rüzgâr tekneyi iter; oyuncu ters yöne sürerek dengeler.
@@ -388,74 +411,88 @@ export class FishingWorld {
   }
 
   private updateHook(dt: number, input: Input): void {
-    const hook = this.hook;
+    const master = this.hook;
     const tip = this.rodTip();
-    const prevY = hook.y;
-    if (hook.stun > 0) hook.stun -= dt;
+    const prevY = master.y;
+    for (const h of this.hooks) if (h.stun > 0) h.stun -= dt;
+
+    const hooked = this.hooks.map((h) => h.fish).filter((f): f is Fish => f !== null);
 
     let vy = 0;
-    if (hook.fish) {
-      // balık takıldı: olta kendiliğinden çekilir, ↑ ile hızlanır (Makara); ↓ ile balık geri salınır
+    if (hooked.length > 0) {
+      // en az bir iğnede balık var: olta kendiliğinden çekilir, ↑ ile hızlanır (Makara); ↓ ile balıklar geri salınır
       if (input.down) vy = this.inisHizi;
-      else vy = -140 * this.makara * hook.fish.t.reel * (input.up ? 1.6 : 1);
-    } else if (hook.stun <= 0) {
+      else {
+        // en yavaş (en güçlü/zor) balık tüm hattın çekilme hızını belirler
+        const slowest = hooked.reduce((a, b) => (a.t.reel < b.t.reel ? a : b));
+        vy = -140 * this.makara * slowest.t.reel * (input.up ? 1.6 : 1);
+      }
+    } else if (master.stun <= 0) {
       if (input.down) vy = this.inisHizi; // Kurşun
       else if (input.up) vy = -300;
     }
 
-    hook.y = clamp(hook.y + vy * dt, HOOK_TOP, this.hookFloor());
+    const floor = this.hookFloor();
+    master.y = clamp(master.y + vy * dt, HOOK_TOP, floor);
+    for (let i = 1; i < this.hooks.length; i++) {
+      this.hooks[i].y = clamp(master.y + i * HOOK_GAP, HOOK_TOP, floor);
+    }
 
     // derinlik arttıkça olta tekneyi daha geç takip eder
-    const depthK = clamp((hook.y - SURFACE) / (this.tabanY - SURFACE), 0, 1);
+    const depthK = clamp((master.y - SURFACE) / (this.tabanY - SURFACE), 0, 1);
     // Dalga misinayı savurur (yağmur/fırtına), derinde daha çok.
     const sway = Math.sin(this.T * 1.3) * this.weather.hookSway * depthK;
-    hook.x += (tip.x + sway - hook.x) * Math.min(1, dt * (7 - 5 * depthK));
+    const targetX = tip.x + sway;
+    for (const h of this.hooks) h.x += (targetX - h.x) * Math.min(1, dt * (7 - 5 * depthK));
 
-    if (prevY < SURFACE && hook.y >= SURFACE) {
-      this.splashAt(hook.x, true);
+    if (prevY < SURFACE && master.y >= SURFACE) {
+      this.splashAt(master.x, true);
       this.hookHasEntered = true;
     }
-    if (prevY >= SURFACE && hook.y < SURFACE) this.splashAt(hook.x, false);
+    if (prevY >= SURFACE && master.y < SURFACE) this.splashAt(master.x, false);
 
-    if (hook.y > SURFACE + 10 && vy !== 0 && this.rnd() < dt * 6) {
-      this.bubbles.push({ x: hook.x + this.rand(-4, 4), y: hook.y, r: this.rand(1.5, 3), v: this.rand(30, 60), w: this.rand(0, 6) });
+    if (master.y > SURFACE + 10 && vy !== 0 && this.rnd() < dt * 6) {
+      this.bubbles.push({ x: master.x + this.rand(-4, 4), y: master.y, r: this.rand(1.5, 3), v: this.rand(30, 60), w: this.rand(0, 6) });
     }
 
-    if (hook.fish) {
-      const f = hook.fish;
+    for (const h of this.hooks) {
+      if (!h.fish) continue;
+      const f = h.fish;
       f.phase += dt;
-      f.x = hook.x;
-      f.y = hook.y + (f.t.junk ? 20 : f.t.len * 0.5 + 2);
-      if (hook.y <= HOOK_TOP + 0.5) this.landFish();
+      f.x = h.x;
+      f.y = h.y + (f.t.junk ? 20 : f.t.len * 0.5 + 2);
+    }
+    if (hooked.length > 0 && master.y <= HOOK_TOP + 0.5) this.landAllFish();
+  }
+
+  /** Takılı balıklar tekneye çıktı: para yerine kovaya girer. */
+  private landAllFish(): void {
+    for (const h of this.hooks) {
+      const f = h.fish;
+      if (!f) continue;
+      h.fish = null;
+      this.fishes.splice(this.fishes.indexOf(f), 1);
+      if (f.t.species) this.catch[f.t.species] = (this.catch[f.t.species] ?? 0) + 1;
+
+      if (f.t.junk) {
+        this.popup(h.x, h.y - 20, f.t.name, '#ff8080');
+        this.events.push('bad');
+      } else if (f.t.joker) {
+        this.popup(h.x, h.y - 20, `${f.t.name}!`, '#ffd23f', 30);
+        this.sparkles(h.x, h.y, 24);
+        this.events.push('gold');
+      } else {
+        this.popup(h.x, h.y - 20, `+ ${f.t.name}`, '#8dff9a');
+        this.events.push('score');
+      }
+      this.flights.push({ f, x0: f.x, y0: f.y, t: 0 });
     }
   }
 
-  /** Balık tekneye çıktı: para yerine kovaya girer. */
-  private landFish(): void {
-    const hook = this.hook;
-    const f = hook.fish!;
-    hook.fish = null;
-    this.fishes.splice(this.fishes.indexOf(f), 1);
-    if (f.t.species) this.catch[f.t.species] = (this.catch[f.t.species] ?? 0) + 1;
-
-    if (f.t.junk) {
-      this.popup(hook.x, hook.y - 20, f.t.name, '#ff8080');
-      this.events.push('bad');
-    } else if (f.t.joker) {
-      this.popup(hook.x, hook.y - 20, `${f.t.name}!`, '#ffd23f', 30);
-      this.sparkles(hook.x, hook.y, 24);
-      this.events.push('gold');
-    } else {
-      this.popup(hook.x, hook.y - 20, `+ ${f.t.name}`, '#8dff9a');
-      this.events.push('score');
-    }
-    this.flights.push({ f, x0: f.x, y0: f.y, t: 0 });
-  }
-
-  private releaseFish(): void {
-    const f = this.hook.fish;
+  private releaseFish(h: HookPoint): void {
+    const f = h.fish;
     if (!f) return;
-    this.hook.fish = null;
+    h.fish = null;
     f.caught = false;
     f.baseY = Math.max(SURFACE + 20, f.y);
     f.phase = 0;
@@ -465,61 +502,68 @@ export class FishingWorld {
   }
 
   private checkHook(): void {
-    const hook = this.hook;
-    if (hook.y < SURFACE + 4) return;
+    if (this.hook.y < SURFACE + 4) return;
 
     for (const f of this.fishes) {
       if (f.caught || f.cool > 0) continue;
       const t = f.t;
 
       if (t.hazard === 'shark' && !this.sharkReady) {
-        const touchHook = this.hits(f, hook.x, hook.y, 2);
-        const touchFish = hook.fish !== null && this.hits(f, hook.fish.x, hook.fish.y, 0);
-        if (!touchHook && !touchFish) continue;
+        const touchedHook = this.hooks.find((h) => this.hits(f, h.x, h.y, 2));
+        const touchedFishHook = this.hooks.find((h) => h.fish && this.hits(f, h.fish.x, h.fish.y, 0));
+        if (!touchedHook && !touchedFishHook) continue;
         f.cool = 2;
-        if (hook.fish && !hook.fish.t.junk) {
+        const victim = this.hooks.find((h) => h.fish && !h.fish.t.junk);
+        if (victim?.fish) {
           // köpekbalığı oltadaki balığı kapar
-          this.fishes.splice(this.fishes.indexOf(hook.fish), 1);
-          hook.fish = null;
-          this.popup(hook.x, hook.y - 30, 'Köpekbalığı balığını kaptı!', '#ff6b6b');
+          this.fishes.splice(this.fishes.indexOf(victim.fish), 1);
+          victim.fish = null;
+          this.popup(victim.x, victim.y - 30, 'Köpekbalığı balığını kaptı!', '#ff6b6b');
         } else {
           // boş oltaya çarparsa misina kopar; dayanıklı misina cezayı azaltır
-          if (hook.fish) {
-            this.fishes.splice(this.fishes.indexOf(hook.fish), 1);
-            hook.fish = null;
+          for (const h of this.hooks) {
+            if (h.fish) {
+              this.fishes.splice(this.fishes.indexOf(h.fish), 1);
+              h.fish = null;
+            }
           }
           const penalty = Math.max(1, 5 - this.lineDurability);
           this.timeLeft = Math.max(0, this.timeLeft - penalty);
-          this.popup(hook.x, hook.y - 30, `Misina koptu! -${penalty} sn`, '#ff6b6b');
-          hook.y = HOOK_TOP;
-          hook.x = this.rodTip().x;
-          hook.stun = 0.6;
+          this.popup(this.hook.x, this.hook.y - 30, `Misina koptu! -${penalty} sn`, '#ff6b6b');
+          const tipX = this.rodTip().x;
+          for (const h of this.hooks) {
+            h.y = HOOK_TOP;
+            h.x = tipX;
+            h.stun = 0.6;
+          }
         }
         this.events.push('bad');
         return;
       }
 
       if (t.hazard === 'jelly') {
-        if (hook.stun <= 0 && this.hits(f, hook.x, hook.y, 4)) {
+        const stung = this.hooks.find((h) => h.stun <= 0 && this.hits(f, h.x, h.y, 4));
+        if (stung) {
           f.cool = 2;
-          hook.stun = 1.5;
-          this.releaseFish();
-          this.popup(hook.x, hook.y - 30, 'Denizanası çarptı!', '#ffb3e6');
-          this.sparkles(hook.x, hook.y, 10, '255,180,230');
+          stung.stun = 1.5;
+          this.releaseFish(stung);
+          this.popup(stung.x, stung.y - 30, 'Denizanası çarptı!', '#ffb3e6');
+          this.sparkles(stung.x, stung.y, 10, '255,180,230');
           this.events.push('zap');
           return;
         }
         continue;
       }
 
-      if (!hook.fish && hook.stun <= 0 && catchCount(this.catch, true) < this.bucketCap && this.hits(f, hook.x, hook.y, 5)) {
-        hook.fish = f;
+      const free = this.hooks.find((h) => !h.fish && h.stun <= 0 && this.hits(f, h.x, h.y, 5));
+      if (free && catchCount(this.catch, true) < this.bucketCap) {
+        free.fish = f;
         f.caught = true;
         this.events.push('catch');
         for (let i = 0; i < 6; i++) {
-          this.bubbles.push({ x: hook.x + this.rand(-8, 8), y: hook.y + this.rand(-4, 10), r: this.rand(2, 4), v: this.rand(40, 80), w: this.rand(0, 6) });
+          this.bubbles.push({ x: free.x + this.rand(-8, 8), y: free.y + this.rand(-4, 10), r: this.rand(2, 4), v: this.rand(40, 80), w: this.rand(0, 6) });
         }
-        return;
+        // Erken çıkılmaz: aynı karede başka bir iğne de boşta bir balığı yakalayabilsin (aynı anda birden çok tutuş).
       }
     }
   }

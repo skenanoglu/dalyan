@@ -24,8 +24,8 @@ import { rollWeather } from '../../src/app/weather';
 
 describe('pazar satışı', () => {
   it('tane fiyatı: bölge çarpanı uygulanır; çöp cezası çarpansız', () => {
-    expect(unitPrice('lufer', 'bogaz')).toBe(35);
-    expect(unitPrice('naylon', 'marmara')).toBe(-35);
+    expect(unitPrice('lufer', 'bogaz')).toBe(23);
+    expect(unitPrice('naylon', 'marmara')).toBe(-45);
   });
 
   it('çeşit çarpanı her yeni tür için +%10, en fazla ×1.8', () => {
@@ -38,24 +38,24 @@ describe('pazar satışı', () => {
   it('kova satışı: türlerin toplamı × çeşit çarpanı − çöp cezası', () => {
     const sale = sellCatch({ hamsi: 5, lufer: 2, kalkan: 1, cizme: 2 }, 'kiyi');
     expect(sale.lines.map((l) => [l.sp, l.count, l.total])).toEqual([
-      ['hamsi', 5, 25],
-      ['lufer', 2, 46],
-      ['kalkan', 1, 60],
-      ['cizme', 2, -40],
+      ['hamsi', 5, 15],
+      ['lufer', 2, 30],
+      ['kalkan', 1, 38],
+      ['cizme', 2, -50],
     ]);
-    expect(sale.base).toBe(131);
+    expect(sale.base).toBe(83);
     expect(sale.varieties).toBe(3);
     expect(sale.multiplier).toBeCloseTo(1.2);
-    expect(sale.bonus).toBe(26);
-    expect(sale.penalty).toBe(40);
-    expect(sale.earned).toBe(117);
+    expect(sale.bonus).toBe(17);
+    expect(sale.penalty).toBe(50);
+    expect(sale.earned).toBe(50);
   });
 
   it('aynı değerde ama çeşitli kova daha çok kazandırır', () => {
     const single = sellCatch({ istavrit: 6 }, 'kiyi');
-    const mixed = sellCatch({ hamsi: 3, istavrit: 2, cipura: 1 }, 'kiyi');
-    expect(single.base).toBe(48);
-    expect(mixed.base).toBe(41);
+    const mixed = sellCatch({ hamsi: 4, istavrit: 2, cipura: 1 }, 'kiyi');
+    expect(single.base).toBe(30);
+    expect(mixed.base).toBe(28);
     expect(mixed.earned).toBeGreaterThan(single.earned);
   });
 
@@ -84,12 +84,12 @@ describe('dükkân', () => {
 
   it('kademeler sırayla alınır: bir öncekine sahip olmadan atlanamaz', () => {
     const p = defaultProfile();
-    p.money = 1200;
+    p.money = 2000;
     expect(buyRod(p, 'karbon')).toBeNull();
     const withBambu = buyRod(p, 'bambu')!;
-    expect(withBambu.money).toBe(950);
+    expect(withBambu.money).toBe(1600);
     const withRod = buyRod(withBambu, 'karbon')!;
-    expect(withRod.money).toBe(50);
+    expect(withRod.money).toBe(200);
     expect(withRod.rods.karbon).toBe(true);
     expect(withRod.rod).toBe('karbon');
     expect(buyRod(withRod, 'karbon')).toBeNull();
@@ -101,7 +101,7 @@ describe('dükkân', () => {
     p.money = 100;
     const withBait = buyBait(p, 'solucan');
     expect(withBait).toBeNull();
-    const richer = { ...p, money: 600 };
+    const richer = { ...p, money: 900 };
     const b = buyBait(richer, 'solucan')!;
     expect(b.money).toBe(100);
     expect(b.baits.solucan).toBe(true);
@@ -110,9 +110,9 @@ describe('dükkân', () => {
 
   it('bölgeler sırayla ve parayla açılır', () => {
     const p = defaultProfile();
-    p.money = 599;
+    p.money = 899;
     expect(canBuyZone(p, 'bogaz')).toBe(false);
-    p.money = 700;
+    p.money = 1000;
     const next = buyZone(p, 'bogaz')!;
     expect(next.money).toBe(100);
     expect(next.zones.bogaz).toBe(true);
@@ -132,17 +132,17 @@ describe('iğne sayısı ve yem yerleşimi', () => {
 
     const withKarbon = { ...p, rod: 'karbon' as const };
     expect(rodHookCapacity(withKarbon)).toBe(2);
-    expect(nextHookSlotPrice(withKarbon)).toBe(20000);
+    expect(nextHookSlotPrice(withKarbon)).toBe(32000);
     expect(canBuyHookSlot(withKarbon)).toBe(false);
 
-    const rich = { ...withKarbon, money: 20000 };
+    const rich = { ...withKarbon, money: 32000 };
     const withSecond = buyHookSlot(rich)!;
     expect(withSecond.money).toBe(0);
     expect(withSecond.hookCount).toBe(2);
     expect(withSecond.baitSlots).toEqual(['ekmek', 'ekmek']);
     expect(nextHookSlotPrice(withSecond)).toBeNull(); // karbon olta 2'de tavan yapar
 
-    const withDerin = { ...withSecond, rod: 'derin' as const, money: 60000 };
+    const withDerin = { ...withSecond, rod: 'derin' as const, money: 95000 };
     expect(rodHookCapacity(withDerin)).toBe(3);
     const withThird = buyHookSlot(withDerin)!;
     expect(withThird.hookCount).toBe(3);
@@ -162,8 +162,8 @@ describe('iğne sayısı ve yem yerleşimi', () => {
     const p = defaultProfile();
     expect(setBaitSlot(p, 0, 'karides')).toBeNull(); // sahip değil
     expect(setBaitSlot(p, 1, 'ekmek')).toBeNull(); // ikinci iğne yok
-    const withSolucan = buyBait({ ...p, money: 500 }, 'solucan')!;
-    const withKarides = buyBait({ ...withSolucan, money: 2000 }, 'karides')!;
+    const withSolucan = buyBait({ ...p, money: 800 }, 'solucan')!;
+    const withKarides = buyBait({ ...withSolucan, money: 3200 }, 'karides')!;
     const equipped = setBaitSlot(withKarides, 0, 'karides')!;
     expect(equipped.baitSlots).toEqual(['karides']);
   });
