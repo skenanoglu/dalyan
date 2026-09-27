@@ -78,10 +78,10 @@ export const LINES: Record<LineId, Line> = {
 export const LINE_ORDER: LineId[] = ['ince', 'orta', 'kalin', 'celik', 'balina'];
 
 export const HOOKS: Record<HookId, Hook> = {
-  adi: { id: 'adi', name: 'Adi İğne', price: 0, desc: 'Sadece küçük balıklar ısırır', maxPrice: 25 },
-  sert: { id: 'sert', name: 'Sert İğne', price: 800, desc: 'Orta boy balıklar da ısırır', maxPrice: 70 },
-  ozel: { id: 'ozel', name: 'Özel İğne', price: 3500, desc: 'Altın balık ve kalkan da ısırır', maxPrice: 200 },
-  usta: { id: 'usta', name: 'Usta İğnesi', price: 12000, desc: 'Fener balığı dahil her balık ısırır', maxPrice: 350 },
+  adi: { id: 'adi', name: 'Adi İğne', price: 0, desc: 'Sadece küçük balıklar ısırır', maxPrice: 13 },
+  sert: { id: 'sert', name: 'Sert İğne', price: 2500, desc: 'Orta boy balıklar da ısırır', maxPrice: 35 },
+  ozel: { id: 'ozel', name: 'Özel İğne', price: 9000, desc: 'Altın balık ve kalkan da ısırır', maxPrice: 100 },
+  usta: { id: 'usta', name: 'Usta İğnesi', price: 25000, desc: 'Fener balığı dahil her balık ısırır', maxPrice: 175 },
 };
 
 export const HOOK_ORDER: HookId[] = ['adi', 'sert', 'ozel', 'usta'];
@@ -98,10 +98,10 @@ export const BOAT_ORDER: BoatId[] = ['sandal', 'kayik', 'motor', 'yat', 'gemi'];
 
 export const BAITS: Record<BaitId, Bait> = {
   ekmek: { id: 'ekmek', name: 'Ekmek', price: 0, desc: 'Hamsi ve istavrit bayılır', likes: ['hamsi', 'istavrit'] },
-  solucan: { id: 'solucan', name: 'Solucan', price: 150, desc: 'Çipura, levrek, palyaço', likes: ['cipura', 'levrek', 'palyaco'] },
-  karides: { id: 'karides', name: 'Karides', price: 600, desc: 'Lüfer, mezgit, palamut', likes: ['lufer', 'mezgit', 'palamut'] },
-  sardalya: { id: 'sardalya', name: 'Sardalya', price: 2000, desc: 'Kalkan ve kılıç balığı', likes: ['kalkan', 'kilic'] },
-  kalamar: { id: 'kalamar', name: 'Kalamar', price: 5000, desc: 'Fener balığı ve altın balık', likes: ['fener', 'altin'] },
+  solucan: { id: 'solucan', name: 'Solucan', price: 500, desc: 'Çipura, levrek, palyaço', likes: ['cipura', 'levrek', 'palyaco'] },
+  karides: { id: 'karides', name: 'Karides', price: 2000, desc: 'Lüfer, mezgit, palamut', likes: ['lufer', 'mezgit', 'palamut'] },
+  sardalya: { id: 'sardalya', name: 'Sardalya', price: 6000, desc: 'Kalkan ve kılıç balığı', likes: ['kalkan', 'kilic'] },
+  kalamar: { id: 'kalamar', name: 'Kalamar', price: 15000, desc: 'Fener balığı ve altın balık', likes: ['fener', 'altin'] },
 };
 
 export const BAIT_ORDER: BaitId[] = ['ekmek', 'solucan', 'karides', 'sardalya', 'kalamar'];

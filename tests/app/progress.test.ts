@@ -8,8 +8,8 @@ import { rollWeather } from '../../src/app/weather';
 
 describe('pazar satışı', () => {
   it('tane fiyatı: bölge çarpanı uygulanır; çöp cezası çarpansız', () => {
-    expect(unitPrice('lufer', 'bogaz')).toBe(68);
-    expect(unitPrice('naylon', 'marmara')).toBe(-8);
+    expect(unitPrice('lufer', 'bogaz')).toBe(35);
+    expect(unitPrice('naylon', 'marmara')).toBe(-35);
   });
 
   it('çeşit çarpanı her yeni tür için +%10, en fazla ×1.8', () => {
@@ -22,24 +22,24 @@ describe('pazar satışı', () => {
   it('kova satışı: türlerin toplamı × çeşit çarpanı − çöp cezası', () => {
     const sale = sellCatch({ hamsi: 5, lufer: 2, kalkan: 1, cizme: 2 }, 'kiyi');
     expect(sale.lines.map((l) => [l.sp, l.count, l.total])).toEqual([
-      ['hamsi', 5, 50],
-      ['lufer', 2, 90],
-      ['kalkan', 1, 120],
-      ['cizme', 2, -10],
+      ['hamsi', 5, 25],
+      ['lufer', 2, 46],
+      ['kalkan', 1, 60],
+      ['cizme', 2, -40],
     ]);
-    expect(sale.base).toBe(260);
+    expect(sale.base).toBe(131);
     expect(sale.varieties).toBe(3);
     expect(sale.multiplier).toBeCloseTo(1.2);
-    expect(sale.bonus).toBe(52);
-    expect(sale.penalty).toBe(10);
-    expect(sale.earned).toBe(302);
+    expect(sale.bonus).toBe(26);
+    expect(sale.penalty).toBe(40);
+    expect(sale.earned).toBe(117);
   });
 
   it('aynı değerde ama çeşitli kova daha çok kazandırır', () => {
     const single = sellCatch({ istavrit: 6 }, 'kiyi');
     const mixed = sellCatch({ hamsi: 3, istavrit: 2, cipura: 1 }, 'kiyi');
-    expect(single.base).toBe(90);
-    expect(mixed.base).toBe(80);
+    expect(single.base).toBe(48);
+    expect(mixed.base).toBe(41);
     expect(mixed.earned).toBeGreaterThan(single.earned);
   });
 
@@ -78,9 +78,9 @@ describe('dükkân', () => {
 
     const withBait = buyBait(withRod, 'solucan');
     expect(withBait).toBeNull();
-    const richer = { ...withRod, money: 200 };
+    const richer = { ...withRod, money: 600 };
     const b = buyBait(richer, 'solucan')!;
-    expect(b.money).toBe(50);
+    expect(b.money).toBe(100);
     expect(b.bait).toBe('solucan');
   });
 
