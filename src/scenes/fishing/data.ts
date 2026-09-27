@@ -5,7 +5,7 @@ export type Mark = 'line' | 'band' | 'stripes' | 'shine' | 'benek' | 'kilic' | '
 
 /** Avda görünen bir canlı türü: pazardaki türler + tehlikeler. */
 export interface FishType {
-  key: SpeciesId | 'denizanasi' | 'kopekbaligi';
+  key: SpeciesId | 'denizanasi';
   /** Kovaya girebilen türse kimliği; tehlikelerde null. */
   species: SpeciesId | null;
   name: string;
@@ -51,6 +51,7 @@ const BODY: Record<SpeciesId, Body> = {
   fener: { len: 62, h: 42, speed: [40, 65], reel: 0.45, mark: 'fener' },
   cizme: { len: 32, h: 36, speed: [25, 40], reel: 0.8 },
   naylon: { len: 38, h: 34, speed: [18, 34], reel: 0.85 },
+  kopekbaligi: { len: 150, h: 46, speed: [140, 180], reel: 0.35 },
 };
 
 const fromSpecies = (id: SpeciesId): FishType => {
@@ -77,7 +78,7 @@ const fromSpecies = (id: SpeciesId): FishType => {
   };
 };
 
-const hazard = (key: 'denizanasi' | 'kopekbaligi', name: string, rest: Pick<FishType, 'len' | 'h' | 'speed' | 'metre' | 'weight' | 'hazard'>): FishType => ({
+const hazard = (key: 'denizanasi', name: string, rest: Pick<FishType, 'len' | 'h' | 'speed' | 'metre' | 'weight' | 'hazard'>): FishType => ({
   key,
   species: null,
   name,
@@ -92,10 +93,11 @@ const hazard = (key: 'denizanasi' | 'kopekbaligi', name: string, rest: Pick<Fish
   ...rest,
 });
 
+// Köpekbalığı: pazardaki türlerden biri ama aynı zamanda bir tehlike (bkz. world.ts checkHook).
+// En güçlü olta + misina olmadan tutulamaz; oltadaki balığı kapar ya da misinayı koparır.
 export const TYPES: FishType[] = [
-  ...SPECIES_ORDER.map(fromSpecies),
+  ...SPECIES_ORDER.map((id) => (id === 'kopekbaligi' ? { ...fromSpecies(id), hazard: 'shark' as const } : fromSpecies(id))),
   hazard('denizanasi', 'Denizanası', { len: 36, h: 40, speed: [20, 35], metre: [3, 35], weight: 1.3, hazard: 'jelly' }),
-  hazard('kopekbaligi', 'Köpekbalığı', { len: 150, h: 46, speed: [140, 180], metre: [10, 60], weight: 0.8, hazard: 'shark' }),
 ];
 
 /** Bölge derinliği (dünya pikseli). Dikey ekranda kıyı en az ekranı dolduracak kadar uzatılır. */

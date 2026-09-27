@@ -1,15 +1,14 @@
 import type { App } from './app';
-import type { Catch, HarborOut, TripSummary, WeatherId } from './types';
+import type { HarborOut, TripSummary, WeatherId } from './types';
 import { ZONES } from './zones';
 import { applyTrip } from './progress';
 import { randomSeed } from './rng';
 import { rollWeather } from './weather';
 import { harborScene } from '../scenes/harbor/scene';
 import { fishingScene } from '../scenes/fishing/scene';
-import { gullScene } from '../scenes/gull/scene';
 import { marketScene } from '../scenes/market/scene';
 
-/** Ana döngü: Liman → Av (olta ya da martı) → Pazar → Liman … */
+/** Ana döngü: Liman → Olta → Pazar → Liman … */
 export async function runGame(app: App): Promise<void> {
   let lastTrip: TripSummary | undefined;
   let weather = rollWeather();
@@ -21,21 +20,16 @@ export async function runGame(app: App): Promise<void> {
 }
 
 export async function runTrip(app: App, choice: HarborOut, weather: WeatherId): Promise<TripSummary> {
-  const upgrades = app.profile.upgrades;
   const seed = randomSeed();
+  const { rod, bait, line, hook, boat, fishSeconds } = app.profile;
+  const out = await app.show(
+    fishingScene,
+    { zone: choice.zone, rod, bait, line, hook, boat, duration: fishSeconds, weather, night: choice.night, seed },
+    `Olta · ${ZONES[choice.zone].name}`,
+  );
 
-  let caught: Catch;
-  if (choice.mode === 'olta') {
-    const { rod, bait } = app.profile;
-    const out = await app.show(fishingScene, { zone: choice.zone, rod, bait, weather, night: choice.night, seed }, `Olta · ${ZONES[choice.zone].name}`);
-    caught = out.catch;
-  } else {
-    const out = await app.show(gullScene, { upgrades, seed }, 'Martı · Boğaz');
-    caught = out.catch;
-  }
-
-  const market = await app.show(marketScene, { catch: caught, mode: choice.mode, zone: choice.zone }, 'Karaköy Balık Pazarı');
-  const { profile, summary } = applyTrip(app.profile, { mode: choice.mode, zone: choice.zone, catch: caught, market });
+  const market = await app.show(marketScene, { catch: out.catch, zone: choice.zone }, 'Karaköy Balık Pazarı');
+  const { profile, summary } = applyTrip(app.profile, { zone: choice.zone, catch: out.catch, market });
   app.commit(profile);
   return summary;
 }

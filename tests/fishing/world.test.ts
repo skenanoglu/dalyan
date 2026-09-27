@@ -15,8 +15,12 @@ function make(extra: Partial<WorldOptions> = {}): FishingWorld {
     misinaM: 12,
     inisHizi: 190,
     makara: 1,
-    bonusSeconds: 0,
+    duration: 90,
     baitLikes: [],
+    hookMaxPrice: Infinity,
+    lineDurability: 0,
+    sharkReady: false,
+    bucketCap: Infinity,
     random: () => rng.next(),
     ...extra,
   });
@@ -47,11 +51,11 @@ describe('av dünyası', () => {
     expect(make({ zone: 'marmara', viewHeight: 900 }).tabanY).toBe(SURFACE + 2100);
   });
 
-  it('süre varış bonusuyla uzar; bitince av kapanır', () => {
-    const w = make({ bonusSeconds: 15 });
+  it('süre kullanıcının seçtiği kadardır; bitince av kapanır', () => {
+    const w = make({ duration: 15 });
     w.start();
-    expect(w.timeLeft).toBe(105);
-    run(w, 106);
+    expect(w.timeLeft).toBe(15);
+    run(w, 16);
     expect(w.over).toBe(true);
     expect(w.events).toContain('end');
   });
@@ -85,7 +89,7 @@ describe('av dünyası', () => {
     expect(w.events).toContain('bad');
   });
 
-  it('boş oltaya köpekbalığı çarparsa misina kopar: -5 sn', () => {
+  it('boş oltaya köpekbalığı çarparsa misina kopar: dayanıklılık cezayı azaltır', () => {
     const w = empty();
     run(w, 0.6, down);
     const before = w.timeLeft;
@@ -93,6 +97,54 @@ describe('av dünyası', () => {
     w.update(STEP, idle);
     expect(before - w.timeLeft).toBeCloseTo(5 + STEP, 3);
     expect(w.hook.y).toBe(HOOK_TOP);
+
+    const strong = empty({ lineDurability: 3 });
+    run(strong, 0.6, down);
+    const beforeStrong = strong.timeLeft;
+    putAtHook(strong, 'kopekbaligi');
+    strong.update(STEP, idle);
+    expect(beforeStrong - strong.timeLeft).toBeCloseTo(2 + STEP, 3);
+  });
+
+  it('en güçlü olta ve misinayla köpekbalığı kaçırılmaz, kovaya girer', () => {
+    const w = empty({ sharkReady: true });
+    run(w, 0.6, down);
+    putAtHook(w, 'kopekbaligi');
+    w.update(STEP, idle);
+    expect(w.hook.fish?.t.key).toBe('kopekbaligi');
+    run(w, 5);
+    expect(w.catch).toEqual({ kopekbaligi: 1 });
+  });
+
+  it('iğne yeterince güçlü değilse pahalı türler doğmaz', () => {
+    const w = make({ zone: 'marmara', viewHeight: 5000, hookMaxPrice: 25 });
+    for (let i = 0; i < 2000; i++) w.spawnFish(true);
+    const keys = new Set(w.fishes.map((f) => f.t.key));
+    expect(keys.has('hamsi')).toBe(true);
+    expect(keys.has('fener')).toBe(false);
+    expect(keys.has('kopekbaligi')).toBe(true); // tehlike her zaman görünür
+  });
+
+  it('kova doluyken yeni balık takılmaz', () => {
+    const w = empty({ bucketCap: 1 });
+    run(w, 0.6, down);
+    putAtHook(w, 'lufer');
+    run(w, 5);
+    expect(w.catch).toEqual({ lufer: 1 });
+    run(w, 0.6, down);
+    putAtHook(w, 'hamsi');
+    w.update(STEP, idle);
+    expect(w.hook.fish).toBeNull();
+  });
+
+  it('balık takılıyken ↓ ile balık aşağı gönderilir', () => {
+    const w = empty();
+    run(w, 0.6, down);
+    putAtHook(w, 'lufer');
+    w.update(STEP, idle);
+    const y0 = w.hook.y;
+    w.update(STEP, down);
+    expect(w.hook.y).toBeGreaterThan(y0);
   });
 
   it('süre biterken oltadaki balık kaçar', () => {

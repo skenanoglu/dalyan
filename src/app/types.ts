@@ -14,22 +14,20 @@ export type SpeciesId =
   | 'kilic'
   | 'fener'
   | 'cizme'
-  | 'naylon';
+  | 'naylon'
+  | 'kopekbaligi';
 
 /** Olta seferinin havası. */
 export type WeatherId = 'gunes' | 'yagmur' | 'firtina';
 
-/** Balık tutma yolu: tekneden olta ya da Boğaz'da martı. */
-export type ModeId = 'olta' | 'marti';
-
-/** Martının yükseltmeleri. Olta tarafında yükseltme yerine olta ve yem tipleri alınır. */
-export type UpgradeId = 'dalis' | 'nefes' | 'gaga' | 'simit';
-
 export type RodId = 'kamis' | 'bambu' | 'karbon' | 'makarali' | 'derin';
 export type BaitId = 'ekmek' | 'solucan' | 'karides' | 'sardalya' | 'kalamar';
-
-/** Yükseltme anahtarı → seviye (0'dan başlar). */
-export type Upgrades = Record<UpgradeId, number>;
+/** Misina: derinlik ve dayanıklılık sağlar; oltadan ayrı alınır. */
+export type LineId = 'ince' | 'orta' | 'kalin' | 'celik' | 'balina';
+/** İğne: hangi türlerin oltaya takılabileceğini (fiyat tavanı) belirler. */
+export type HookId = 'adi' | 'sert' | 'ozel' | 'usta';
+/** Tekne: bir seferde tutulabilecek en fazla balık sayısını belirler. */
+export type BoatId = 'sandal' | 'kayik' | 'motor' | 'yat' | 'gemi';
 
 /** Tür → adet. */
 export type Catch = Partial<Record<SpeciesId, number>>;
@@ -42,8 +40,6 @@ export interface HarborIn {
   weather: WeatherId;
 }
 export interface HarborOut {
-  mode: ModeId;
-  /** Oltanın atılacağı bölge; martıda kullanılmaz. */
   zone: ZoneId;
   /** Olta gece mi atılacak. */
   night: boolean;
@@ -53,6 +49,12 @@ export interface FishingIn {
   zone: ZoneId;
   rod: RodId;
   bait: BaitId;
+  /** Verilmezse en zayıf misina/iğne/tekne varsayılır (ör. sahte av/testler). */
+  line?: LineId;
+  hook?: HookId;
+  boat?: BoatId;
+  /** Av süresi (sn); verilmezse 90. */
+  duration?: number;
   weather: WeatherId;
   night: boolean;
   seed: number;
@@ -61,19 +63,8 @@ export interface FishingOut {
   catch: Catch;
 }
 
-export interface GullIn {
-  upgrades: Upgrades;
-  seed: number;
-}
-export interface GullOut {
-  catch: Catch;
-  /** Geçilen engel sayısı. */
-  passed: number;
-}
-
 export interface MarketIn {
   catch: Catch;
-  mode: ModeId;
   zone: ZoneId;
 }
 
@@ -100,8 +91,7 @@ export interface MarketOut {
 }
 
 export interface TripSummary {
-  mode: ModeId;
-  zone: ZoneId | null;
+  zone: ZoneId;
   earned: number;
   fish: number;
   newSpecies: SpeciesId[];

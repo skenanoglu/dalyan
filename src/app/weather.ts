@@ -1,6 +1,6 @@
 import type { SpeciesId, WeatherId } from './types';
 
-/** Olta seferinin havası. Martının Boğaz'ı kendi sabah/gün batımı/gece/fırtına fazlarını kullanır. */
+/** Olta seferinin havası. */
 export interface WeatherDef {
   id: WeatherId;
   name: string;

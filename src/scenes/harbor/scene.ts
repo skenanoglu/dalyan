@@ -1,14 +1,26 @@
 import { deferred, onAction, type SceneFactory } from '../../app/scene';
-import type { BaitId, HarborIn, HarborOut, ModeId, RodId, TripSummary, UpgradeId, WeatherId, ZoneId } from '../../app/types';
+import type { BaitId, BoatId, HarborIn, HarborOut, HookId, LineId, RodId, TripSummary, WeatherId, ZoneId } from '../../app/types';
 import type { Profile } from '../../app/save';
+import { FISH_SECONDS_OPTIONS } from '../../app/save';
 import { authErrorMessage, firebaseReady, signIn, signInWithGoogle, signOutUser, signUp, type User } from '../../app/cloud';
 import { ZONES, ZONE_ORDER } from '../../app/zones';
-import { SPECIES, SPECIES_ORDER, gullReach } from '../../app/species';
-import { UPGRADES, UPGRADE_ORDER, maxLevel, upgradeCost, upgradeValue } from '../../app/upgrades';
-import { BAITS, BAIT_ORDER, RODS, ROD_ORDER } from '../../app/gear';
-import { MODE_ICON, MODE_NAMES } from '../../app/modes';
+import { SPECIES, SPECIES_ORDER } from '../../app/species';
+import { BAITS, BAIT_ORDER, BOATS, BOAT_ORDER, HOOKS, HOOK_ORDER, LINES, LINE_ORDER, RODS, ROD_ORDER } from '../../app/gear';
 import { NIGHT, WEATHER } from '../../app/weather';
-import { buyBait, buyRod, buyUpgrade, buyZone, canBuyBait, canBuyRod, canBuyUpgrade, canBuyZone } from '../../app/progress';
+import {
+  buyBait,
+  buyBoat,
+  buyHook,
+  buyLine,
+  buyRod,
+  buyZone,
+  canBuyBait,
+  canBuyBoat,
+  canBuyHook,
+  canBuyLine,
+  canBuyRod,
+  canBuyZone,
+} from '../../app/progress';
 import { money } from '../../app/format';
 import { SKYLINE_SVG } from './skyline';
 
@@ -136,8 +148,20 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
       case 'use-rod':
         if (p.rods[arg as RodId]) commit({ ...p, rod: arg as RodId });
         break;
+      case 'use-line':
+        if (p.lines[arg as LineId]) commit({ ...p, line: arg as LineId });
+        break;
+      case 'use-hook':
+        if (p.hooks[arg as HookId]) commit({ ...p, hook: arg as HookId });
+        break;
+      case 'use-boat':
+        if (p.boats[arg as BoatId]) commit({ ...p, boat: arg as BoatId });
+        break;
       case 'night':
         commit({ ...p, night: arg === '1' });
+        break;
+      case 'duration':
+        commit({ ...p, fishSeconds: Number(arg) });
         break;
       case 'use-bait':
         if (p.baits[arg as BaitId]) commit({ ...p, bait: arg as BaitId });
@@ -148,15 +172,21 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
       case 'buy-rod':
         commit(buyRod(p, arg as RodId));
         break;
+      case 'buy-line':
+        commit(buyLine(p, arg as LineId));
+        break;
+      case 'buy-hook':
+        commit(buyHook(p, arg as HookId));
+        break;
+      case 'buy-boat':
+        commit(buyBoat(p, arg as BoatId));
+        break;
       case 'buy-bait':
         commit(buyBait(p, arg as BaitId));
         break;
-      case 'upgrade':
-        commit(buyUpgrade(p, arg as UpgradeId));
-        break;
       case 'play':
         finished = true;
-        resolve({ mode: arg as ModeId, zone, night: app.profile.night });
+        resolve({ zone, night: app.profile.night });
         return;
       case 'close-banner':
         banner = null;
@@ -231,13 +261,12 @@ function authFormView(state: AuthState): string {
 }
 
 function bannerView(t: TripSummary): string {
-  const where = t.zone ? ZONES[t.zone].name : 'Boğaz';
   const fresh = t.newSpecies.length > 0 ? ` · Yeni tür: ${t.newSpecies.map((id) => SPECIES[id].name).join(', ')}` : '';
   return `
     <div class="banner">
       <div>
-        <b>${MODE_ICON[t.mode]} +${money(t.earned)}</b>
-        <small>${where} · ${t.fish} balık${fresh}</small>
+        <b>🎣 +${money(t.earned)}</b>
+        <small>${ZONES[t.zone].name} · ${t.fish} balık${fresh}</small>
       </div>
       <button class="icon-btn" data-act="close-banner" aria-label="Kapat">✕</button>
     </div>`;
@@ -256,51 +285,58 @@ function zoneChips(p: Profile, selected: ZoneId): string {
 function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
   const weather = WEATHER[weatherId];
   const z = ZONES[zone];
-  const rod = RODS[p.rod];
   const bait = BAITS[p.bait];
+  const line = LINES[p.line];
+  const boat = BOATS[p.boat];
   const rods = ROD_ORDER.filter((id) => p.rods[id])
     .map((id) => `<button class="chip ${id === p.rod ? 'on' : ''}" data-act="use-rod" data-arg="${id}">${RODS[id].name}</button>`)
+    .join('');
+  const lines = LINE_ORDER.filter((id) => p.lines[id])
+    .map((id) => `<button class="chip ${id === p.line ? 'on' : ''}" data-act="use-line" data-arg="${id}">${LINES[id].name}</button>`)
+    .join('');
+  const hooks = HOOK_ORDER.filter((id) => p.hooks[id])
+    .map((id) => `<button class="chip ${id === p.hook ? 'on' : ''}" data-act="use-hook" data-arg="${id}">${HOOKS[id].name}</button>`)
     .join('');
   const baits = BAIT_ORDER.filter((id) => p.baits[id])
     .map((id) => `<button class="chip ${id === p.bait ? 'on' : ''}" data-act="use-bait" data-arg="${id}">${BAITS[id].name}</button>`)
     .join('');
-  const reach = Math.min(rod.depth, z.depth);
-  const depthNote = rod.depth < z.depth ? ` · daha derini için daha iyi olta` : '';
-
-  const dive = upgradeValue('dalis', p.upgrades.dalis);
-  const gullFish = gullReach(dive).filter((s) => !s.junk);
-  const nextFish = SPECIES_ORDER.map((id) => SPECIES[id]).find((s) => s.gullDepth !== null && s.gullDepth > dive && !s.junk);
+  const boats = BOAT_ORDER.filter((id) => p.boats[id])
+    .map((id) => `<button class="chip ${id === p.boat ? 'on' : ''}" data-act="use-boat" data-arg="${id}">${BOATS[id].name}</button>`)
+    .join('');
+  const durations = FISH_SECONDS_OPTIONS.map(
+    (s) => `<button class="chip ${s === p.fishSeconds ? 'on' : ''}" data-act="duration" data-arg="${s}">${s} sn</button>`,
+  ).join('');
+  const reach = Math.min(line.depth, z.depth);
+  const depthNote = line.depth < z.depth ? ` · daha derini için daha uzun misina` : '';
 
   return `
     <section class="mode mode-olta">
       <div class="mode-head">
-        <span class="mode-icon">${MODE_ICON.olta}</span>
+        <span class="mode-icon">🎣</span>
         <div><h3>Olta</h3><p>Tekneyle açıl. Küçük balıklar sığda, büyükler derinde.</p></div>
       </div>
       <div class="row-label">Bölge</div>
       <div class="chips wrap">${zoneChips(p, zone)}</div>
       <div class="row-label">Olta</div>
       <div class="chips wrap">${rods}</div>
+      <div class="row-label">Misina</div>
+      <div class="chips wrap">${lines}</div>
+      <div class="row-label">İğne</div>
+      <div class="chips wrap">${hooks}</div>
       <div class="row-label">Yem</div>
       <div class="chips wrap">${baits}</div>
+      <div class="row-label">Tekne</div>
+      <div class="chips wrap">${boats}</div>
       <div class="row-label">Zaman</div>
       <div class="chips">
         <button class="chip ${p.night ? '' : 'on'}" data-act="night" data-arg="0">☀️ Gündüz</button>
         <button class="chip ${p.night ? 'on' : ''}" data-act="night" data-arg="1">${NIGHT.icon} Gece</button>
       </div>
+      <div class="row-label">Süre</div>
+      <div class="chips">${durations}</div>
       <p class="forecast ${weather.id}">${weather.icon} Hava: <b>${weather.name}</b>. ${weather.desc}${p.night ? `<br>${NIGHT.icon} ${NIGHT.desc}` : ''}</p>
-      <p class="mode-meta">${reach} m'ye kadar inersin${depthNote}. ${bait.name}: ${bait.desc.toLowerCase()}.</p>
-      <button class="btn primary" data-act="play" data-arg="olta">Oltayı At</button>
-    </section>
-    <section class="mode mode-marti">
-      <div class="mode-head">
-        <span class="mode-icon">${MODE_ICON.marti}</span>
-        <div><h3>Martı</h3><p>Boğaz'da uç, pike yapıp suya dal, balığı kap.</p></div>
-      </div>
-      <p class="mode-meta">Dalışınla yakalayabildiklerin: ${gullFish.map((s) => s.name).join(', ')}${
-        nextFish ? `. Dalışı geliştirirsen sırada: ${nextFish.name}.` : '.'
-      }</p>
-      <button class="btn primary" data-act="play" data-arg="marti">Uçmaya Başla</button>
+      <p class="mode-meta">${reach} m'ye kadar inersin${depthNote}. ${bait.name}: ${bait.desc.toLowerCase()}. Kova: en fazla ${boat.capacity} balık.</p>
+      <button class="btn primary" data-act="play">Oltayı At</button>
     </section>`;
 }
 
@@ -318,7 +354,23 @@ function shopView(p: Profile): string {
     const action = p.rods[id]
       ? `<span class="maxed">${p.rod === id ? 'Elinde' : 'Sende'}</span>`
       : `<button class="btn buy" data-act="buy-rod" data-arg="${id}" ${canBuyRod(p, id) ? '' : 'disabled'}>${money(r.price)}</button>`;
-    return shopRow(r.name, [r.desc, `${r.depth} m · çekiş ×${r.reel}`], action);
+    return shopRow(r.name, [r.desc, `iniş ×${(r.drop / RODS.kamis.drop).toFixed(1)} · çekiş ×${r.reel}`], action);
+  }).join('');
+
+  const lines = LINE_ORDER.map((id) => {
+    const l = LINES[id];
+    const action = p.lines[id]
+      ? `<span class="maxed">${p.line === id ? 'Takılı' : 'Sende'}</span>`
+      : `<button class="btn buy" data-act="buy-line" data-arg="${id}" ${canBuyLine(p, id) ? '' : 'disabled'}>${money(l.price)}</button>`;
+    return shopRow(l.name, [l.desc, `${l.depth} m · dayanıklılık ${l.durability}/4${l.sharkReady ? ' · köpekbalığına dayanır' : ''}`], action);
+  }).join('');
+
+  const hooks = HOOK_ORDER.map((id) => {
+    const h = HOOKS[id];
+    const action = p.hooks[id]
+      ? `<span class="maxed">${p.hook === id ? 'Takılı' : 'Sende'}</span>`
+      : `<button class="btn buy" data-act="buy-hook" data-arg="${id}" ${canBuyHook(p, id) ? '' : 'disabled'}>${money(h.price)}</button>`;
+    return shopRow(h.name, [h.desc], action);
   }).join('');
 
   const baits = BAIT_ORDER.map((id) => {
@@ -327,6 +379,14 @@ function shopView(p: Profile): string {
       ? `<span class="maxed">${p.bait === id ? 'Takılı' : 'Sende'}</span>`
       : `<button class="btn buy" data-act="buy-bait" data-arg="${id}" ${canBuyBait(p, id) ? '' : 'disabled'}>${money(b.price)}</button>`;
     return shopRow(b.name, [b.desc], action);
+  }).join('');
+
+  const boats = BOAT_ORDER.map((id) => {
+    const bt = BOATS[id];
+    const action = p.boats[id]
+      ? `<span class="maxed">${p.boat === id ? 'Elinde' : 'Sende'}</span>`
+      : `<button class="btn buy" data-act="buy-boat" data-arg="${id}" ${canBuyBoat(p, id) ? '' : 'disabled'}>${money(bt.price)}</button>`;
+    return shopRow(bt.name, [bt.desc, `kova: ${bt.capacity} balık`], action);
   }).join('');
 
   const zones = ZONE_ORDER.slice(1)
@@ -339,24 +399,13 @@ function shopView(p: Profile): string {
     })
     .join('');
 
-  const gull = UPGRADE_ORDER.map((id) => {
-    const u = UPGRADES[id];
-    const lv = p.upgrades[id];
-    const cost = upgradeCost(id, lv);
-    const now = u.format(upgradeValue(id, lv));
-    const after = cost === null ? '' : ` → ${u.format(upgradeValue(id, lv + 1))}`;
-    const action =
-      cost === null
-        ? '<span class="maxed">En üstte</span>'
-        : `<button class="btn buy" data-act="upgrade" data-arg="${id}" ${canBuyUpgrade(p, id) ? '' : 'disabled'}>${money(cost)}</button>`;
-    return shopRow(`${u.name} <em>Sv ${lv}/${maxLevel(id)}</em>`, [u.desc, `${now}${after}`], action);
-  }).join('');
-
   return `
-    <h4>${MODE_ICON.olta} Oltalar</h4>${rods}
+    <h4>🎣 Oltalar</h4>${rods}
+    <h4>🧵 Misinalar</h4>${lines}
+    <h4>🪝 İğneler</h4>${hooks}
     <h4>🪱 Yemler</h4>${baits}
-    <h4>🗺️ Bölgeler</h4>${zones}
-    <h4>${MODE_ICON.marti} ${MODE_NAMES.marti}</h4>${gull}`;
+    <h4>🚤 Tekneler</h4>${boats}
+    <h4>🗺️ Bölgeler</h4>${zones}`;
 }
 
 function logView(p: Profile): string {
@@ -366,10 +415,9 @@ function logView(p: Profile): string {
     .map((id) => {
       const s = SPECIES[id];
       const entry = p.logbook[id];
-      const how = s.gullDepth !== null ? `${MODE_ICON.olta}${MODE_ICON.marti}` : MODE_ICON.olta;
       return entry
-        ? `<li><i style="--c:${s.color}"></i><span>${s.name}<small>${how} · ${money(s.price)}</small></span><b>${entry.count}</b></li>`
-        : `<li class="unknown"><i></i><span>???<small>${how}</small></span><b>—</b></li>`;
+        ? `<li><i style="--c:${s.color}"></i><span>${s.name}<small>${money(s.price)}</small></span><b>${entry.count}</b></li>`
+        : `<li class="unknown"><i></i><span>???</span><b>—</b></li>`;
     })
     .join('');
   return `

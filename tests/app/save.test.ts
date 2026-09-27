@@ -8,7 +8,6 @@ describe('kayıt', () => {
     expect(p.zones).toEqual({ kiyi: true, bogaz: false, cukur: false, marmara: false });
     expect(p.rod).toBe('kamis');
     expect(p.bait).toBe('ekmek');
-    expect(Object.values(p.upgrades).every((lv) => lv === 0)).toBe(true);
   });
 
   it('bozuk kayıt varsayılana döner', () => {
@@ -23,20 +22,17 @@ describe('kayıt', () => {
         v: 1,
         money: 1234.7,
         character: 'marti',
-        upgrades: { dalis: 99, nefes: -3, tezgah: 2, misina: 4 },
         zones: { bogaz: true, kiyi: false },
         rods: { karbon: true, kamis: false, uzay: true },
         rod: 'derin',
         baits: { karides: true },
         bait: 'karides',
         lastZone: 'marmara',
-        lastMode: 'uçak',
         logbook: { hamsi: { count: 5 }, yunus: { count: 2 }, lufer: { count: 0 } },
         settings: { sound: 'evet', colorblind: true },
       }),
     );
     expect(p.money).toBe(1234);
-    expect(p.upgrades).toEqual({ dalis: 4, nefes: 0, gaga: 0, simit: 0 });
     expect(p).not.toHaveProperty('character');
     expect(p.zones.kiyi).toBe(true);
     expect(p.zones.bogaz).toBe(true);
@@ -45,7 +41,6 @@ describe('kayıt', () => {
     expect(p.rod).toBe('kamis');
     expect(p.bait).toBe('karides');
     expect(p.lastZone).toBe('kiyi');
-    expect(p.lastMode).toBe('olta');
     expect(p.logbook).toEqual({ hamsi: { count: 5 } });
     expect(p.settings).toEqual({ sound: true, haptics: true });
   });
@@ -55,12 +50,10 @@ describe('kayıt', () => {
     p.money = 50;
     p.zones.bogaz = true;
     p.lastZone = 'bogaz';
-    p.lastMode = 'marti';
     p.rods.bambu = true;
     p.rod = 'bambu';
     p.baits.solucan = true;
     p.bait = 'solucan';
-    p.upgrades.dalis = 2;
     p.logbook.lufer = { count: 3 };
     p.settings.sound = false;
     p.night = true;

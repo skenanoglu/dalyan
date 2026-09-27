@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { catchCount, parseCatch } from '../../src/app/catch';
-import { SPECIES, gullReach, speciesFor, speciesInReach } from '../../src/app/species';
+import { SPECIES, speciesInReach } from '../../src/app/species';
 import { fakeCatch } from '../../src/scenes/fishing/fake';
 import type { FishingIn, SpeciesId } from '../../src/app/types';
 
@@ -30,14 +30,7 @@ describe('kova ve türler', () => {
     const reach = speciesInReach(12).map((s) => s.id);
     expect(reach).toContain('hamsi');
     expect(reach).not.toContain('kalkan');
-    expect(speciesInReach(110)).toHaveLength(14);
-  });
-
-  it('martı: dalış derinleştikçe büyük balıklar açılır; en derin türleri hiç tutamaz', () => {
-    expect(gullReach(30).map((s) => s.id).sort()).toEqual(['hamsi', 'istavrit', 'naylon']);
-    expect(gullReach(160).map((s) => s.id)).toEqual(expect.arrayContaining(['levrek', 'lufer', 'palamut', 'altin']));
-    const gull = speciesFor('marti').map((s) => s.id);
-    for (const deep of ['mezgit', 'kalkan', 'kilic', 'fener', 'cizme'] as SpeciesId[]) expect(gull).not.toContain(deep);
+    expect(speciesInReach(110)).toHaveLength(15);
   });
 });
 

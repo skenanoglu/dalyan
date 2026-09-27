@@ -2,6 +2,8 @@ import type { Catch, SpeciesId, WeatherId, ZoneId } from '../../app/types';
 import { NIGHT, WEATHER, type WeatherDef } from '../../app/weather';
 import { BAIT_PULL } from '../../app/gear';
 import { ZONES } from '../../app/zones';
+import { SPECIES } from '../../app/species';
+import { catchCount } from '../../app/catch';
 import { TYPES, ZONE_DEPTH_PX, type FishType } from './data';
 
 // Balık Avı'nın dünya mantığı (BalikAvi/js/dunya.js) dikey ekrana ve modüle uyarlandı.
@@ -55,9 +57,18 @@ export interface WorldOptions {
   misinaM: number;
   inisHizi: number;
   makara: number;
-  bonusSeconds: number;
+  /** Av süresi (sn). */
+  duration: number;
   /** Takılı yemin sevdiği türler daha sık görünür. */
   baitLikes: SpeciesId[];
+  /** İğnenin ısırabileceği en pahalı tür fiyatı; üstü ısırmaz (tehlikeler hariç). */
+  hookMaxPrice?: number;
+  /** Misinanın 0-4 dayanıklılığı; misina kopma cezasını azaltır. */
+  lineDurability?: number;
+  /** En güçlü olta + misinayla köpekbalığı da tutulabilir. */
+  sharkReady?: boolean;
+  /** Kovaya (çöp dahil) sığacak en fazla balık; tekneye göre değişir. */
+  bucketCap?: number;
   /** Hava (varsayılan güneşli). */
   weather?: WeatherId;
   /** Gece mi (varsayılan gündüz). */
@@ -81,6 +92,10 @@ export class FishingWorld {
   readonly inisHizi: number;
   readonly makara: number;
   readonly baitLikes: ReadonlySet<SpeciesId>;
+  readonly hookMaxPrice: number;
+  readonly lineDurability: number;
+  readonly sharkReady: boolean;
+  readonly bucketCap: number;
   readonly weather: WeatherDef;
   readonly night: boolean;
 
@@ -129,13 +144,17 @@ export class FishingWorld {
     this.worldH = Math.max(o.viewHeight, this.tabanY + 40);
     this.pxMetre = (depthPx - 40) / zone.depth;
     this.maxFish = Math.max(6, Math.round(zone.maxFish * PORTRAIT_DENSITY));
-    this.totalTime = BASE_TIME + Math.max(0, o.bonusSeconds);
+    this.totalTime = o.duration > 0 ? o.duration : BASE_TIME;
     this.timeLeft = this.totalTime;
     this.lastTick = this.totalTime;
     this.misinaM = o.misinaM;
     this.inisHizi = o.inisHizi;
     this.makara = o.makara;
     this.baitLikes = new Set(o.baitLikes);
+    this.hookMaxPrice = o.hookMaxPrice ?? Infinity;
+    this.lineDurability = o.lineDurability ?? 0;
+    this.sharkReady = o.sharkReady ?? false;
+    this.bucketCap = o.bucketCap ?? Infinity;
     this.weather = WEATHER[o.weather ?? 'gunes'];
     this.night = o.night ?? false;
     this.scatterDecor();
@@ -249,6 +268,8 @@ export class FishingWorld {
       if (t.hazard === 'shark') w = sharks >= 1 ? 0 : w * (0.5 + progress * 1.5) * this.weather.sharkWeight;
       if (t.hazard === 'jelly' && jellies >= 3) w = 0;
       if (t.junk) w = junk >= this.weather.junkCap ? 0 : w * this.weather.junkWeight;
+      // İğne yeterince güçlü değilse pahalı türler ısırmaz (tehlikeler ve çöp hariç: köpekbalığı her zaman görünür).
+      if (t.species && !t.hazard && !t.junk && SPECIES[t.species].price > this.hookMaxPrice) w = 0;
       if (t.species && this.baitLikes.has(t.species)) w *= BAIT_PULL;
       if (this.night && t.species) {
         if (NIGHT.likes.includes(t.species)) w *= NIGHT.likeX;
@@ -374,8 +395,9 @@ export class FishingWorld {
 
     let vy = 0;
     if (hook.fish) {
-      // balık takıldı: olta kendiliğinden çekilir, ↑ ile hızlanır (Makara)
-      vy = -140 * this.makara * hook.fish.t.reel * (input.up ? 1.6 : 1);
+      // balık takıldı: olta kendiliğinden çekilir, ↑ ile hızlanır (Makara); ↓ ile balık geri salınır
+      if (input.down) vy = this.inisHizi;
+      else vy = -140 * this.makara * hook.fish.t.reel * (input.up ? 1.6 : 1);
     } else if (hook.stun <= 0) {
       if (input.down) vy = this.inisHizi; // Kurşun
       else if (input.up) vy = -300;
@@ -450,7 +472,7 @@ export class FishingWorld {
       if (f.caught || f.cool > 0) continue;
       const t = f.t;
 
-      if (t.hazard === 'shark') {
+      if (t.hazard === 'shark' && !this.sharkReady) {
         const touchHook = this.hits(f, hook.x, hook.y, 2);
         const touchFish = hook.fish !== null && this.hits(f, hook.fish.x, hook.fish.y, 0);
         if (!touchHook && !touchFish) continue;
@@ -461,13 +483,14 @@ export class FishingWorld {
           hook.fish = null;
           this.popup(hook.x, hook.y - 30, 'Köpekbalığı balığını kaptı!', '#ff6b6b');
         } else {
-          // boş oltaya çarparsa misina kopar
+          // boş oltaya çarparsa misina kopar; dayanıklı misina cezayı azaltır
           if (hook.fish) {
             this.fishes.splice(this.fishes.indexOf(hook.fish), 1);
             hook.fish = null;
           }
-          this.timeLeft = Math.max(0, this.timeLeft - 5);
-          this.popup(hook.x, hook.y - 30, 'Misina koptu! -5 sn', '#ff6b6b');
+          const penalty = Math.max(1, 5 - this.lineDurability);
+          this.timeLeft = Math.max(0, this.timeLeft - penalty);
+          this.popup(hook.x, hook.y - 30, `Misina koptu! -${penalty} sn`, '#ff6b6b');
           hook.y = HOOK_TOP;
           hook.x = this.rodTip().x;
           hook.stun = 0.6;
@@ -489,7 +512,7 @@ export class FishingWorld {
         continue;
       }
 
-      if (!hook.fish && hook.stun <= 0 && this.hits(f, hook.x, hook.y, 5)) {
+      if (!hook.fish && hook.stun <= 0 && catchCount(this.catch, true) < this.bucketCap && this.hits(f, hook.x, hook.y, 5)) {
         hook.fish = f;
         f.caught = true;
         this.events.push('catch');

@@ -1,5 +1,5 @@
 import type { App } from './app';
-import type { ModeId, ZoneId } from './types';
+import type { ZoneId } from './types';
 import { deferred, onAction, type SceneFactory } from './scene';
 import { isZoneId } from './zones';
 import { parseCatch } from './catch';
@@ -7,7 +7,6 @@ import { randomSeed } from './rng';
 import { isWeatherId, rollWeather } from './weather';
 import { harborScene } from '../scenes/harbor/scene';
 import { fishingScene } from '../scenes/fishing/scene';
-import { gullScene } from '../scenes/gull/scene';
 import { marketScene } from '../scenes/market/scene';
 import { fakeCatch } from '../scenes/fishing/fake';
 
@@ -28,8 +27,8 @@ const resultScene: SceneFactory<{ name: string; out: unknown }, void> = (root, i
 };
 
 /**
- * `?sahne=liman|olta|marti|pazar` ile tek bir sahneyi açar.
- * Ek parametreler: bolge, seed, mod=olta|marti, hava=gunes|yagmur|firtina, gece=1, kova=hamsi:8,lufer:3
+ * `?sahne=liman|olta|pazar` ile tek bir sahneyi açar.
+ * Ek parametreler: bolge, seed, hava=gunes|yagmur|firtina, gece=1, kova=hamsi:8,lufer:3
  */
 export function startDebugScene(app: App, params: URLSearchParams): boolean {
   const name = params.get('sahne');
@@ -38,19 +37,23 @@ export function startDebugScene(app: App, params: URLSearchParams): boolean {
   const rawZone = params.get('bolge') ?? '';
   const zone: ZoneId = isZoneId(rawZone) ? rawZone : 'kiyi';
   const seed = Number(params.get('seed')) || randomSeed();
-  const mode: ModeId = params.get('mod') === 'marti' ? 'marti' : 'olta';
-  const upgrades = app.profile.upgrades;
   const rawWeather = params.get('hava');
   const weather = isWeatherId(rawWeather) ? rawWeather : rollWeather();
   const night = params.get('gece') === '1';
 
   const runners: Record<string, () => Promise<unknown>> = {
     liman: () => app.show(harborScene, { weather }, 'Liman'),
-    olta: () => app.show(fishingScene, { zone, rod: app.profile.rod, bait: app.profile.bait, weather, night, seed }, 'Olta'),
-    marti: () => app.show(gullScene, { upgrades, seed }, 'Martı'),
+    olta: () =>
+      app.show(
+        fishingScene,
+        { zone, rod: app.profile.rod, bait: app.profile.bait, line: app.profile.line, hook: app.profile.hook, boat: app.profile.boat, duration: app.profile.fishSeconds, weather, night, seed },
+        'Olta',
+      ),
     pazar: () => {
-      const caught = parseCatch(params.get('kova')) ?? fakeCatch({ zone, rod: app.profile.rod, bait: app.profile.bait, weather, night, seed });
-      return app.show(marketScene, { catch: caught, mode, zone }, 'Pazar');
+      const caught =
+        parseCatch(params.get('kova')) ??
+        fakeCatch({ zone, rod: app.profile.rod, bait: app.profile.bait, line: app.profile.line, weather, night, seed });
+      return app.show(marketScene, { catch: caught, zone }, 'Pazar');
     },
   };
 

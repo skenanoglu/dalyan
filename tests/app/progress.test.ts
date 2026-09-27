@@ -1,27 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import {
-  applyTrip,
-  buyBait,
-  buyRod,
-  buyUpgrade,
-  buyZone,
-  canBuyZone,
-  sellCatch,
-  unitPrice,
-  varietyMultiplier,
-} from '../../src/app/progress';
+import { applyTrip, buyBait, buyRod, buyZone, canBuyZone, sellCatch, unitPrice, varietyMultiplier } from '../../src/app/progress';
 import { defaultProfile } from '../../src/app/save';
-import { upgradeCost, upgradeValue } from '../../src/app/upgrades';
-import { BAITS, RODS, ROD_ORDER } from '../../src/app/gear';
+import { BAITS, LINES, LINE_ORDER, RODS } from '../../src/app/gear';
 import { afterTheft, catTarget } from '../../src/scenes/market/scene';
 import { Rng } from '../../src/app/rng';
 import { rollWeather } from '../../src/app/weather';
 
 describe('pazar satışı', () => {
-  it('tane fiyatı: oltada bölge çarpanı var, martıda yok; çöp cezası çarpansız', () => {
-    expect(unitPrice('lufer', 'olta', 'bogaz')).toBe(68);
-    expect(unitPrice('lufer', 'marti', 'bogaz')).toBe(45);
-    expect(unitPrice('naylon', 'olta', 'marmara')).toBe(-8);
+  it('tane fiyatı: bölge çarpanı uygulanır; çöp cezası çarpansız', () => {
+    expect(unitPrice('lufer', 'bogaz')).toBe(68);
+    expect(unitPrice('naylon', 'marmara')).toBe(-8);
   });
 
   it('çeşit çarpanı her yeni tür için +%10, en fazla ×1.8', () => {
@@ -32,7 +20,7 @@ describe('pazar satışı', () => {
   });
 
   it('kova satışı: türlerin toplamı × çeşit çarpanı − çöp cezası', () => {
-    const sale = sellCatch({ hamsi: 5, lufer: 2, kalkan: 1, cizme: 2 }, 'olta', 'kiyi');
+    const sale = sellCatch({ hamsi: 5, lufer: 2, kalkan: 1, cizme: 2 }, 'kiyi');
     expect(sale.lines.map((l) => [l.sp, l.count, l.total])).toEqual([
       ['hamsi', 5, 50],
       ['lufer', 2, 90],
@@ -48,32 +36,33 @@ describe('pazar satışı', () => {
   });
 
   it('aynı değerde ama çeşitli kova daha çok kazandırır', () => {
-    const single = sellCatch({ istavrit: 6 }, 'marti', 'kiyi');
-    const mixed = sellCatch({ hamsi: 3, istavrit: 2, cipura: 1 }, 'marti', 'kiyi');
+    const single = sellCatch({ istavrit: 6 }, 'kiyi');
+    const mixed = sellCatch({ hamsi: 3, istavrit: 2, cipura: 1 }, 'kiyi');
     expect(single.base).toBe(90);
     expect(mixed.base).toBe(80);
     expect(mixed.earned).toBeGreaterThan(single.earned);
   });
 
   it('kazanç eksiye düşmez; boş kova sıfır', () => {
-    expect(sellCatch({ naylon: 5 }, 'marti', 'kiyi').earned).toBe(0);
-    expect(sellCatch({}, 'olta', 'kiyi')).toMatchObject({ earned: 0, varieties: 0, lines: [] });
+    expect(sellCatch({ naylon: 5 }, 'kiyi').earned).toBe(0);
+    expect(sellCatch({}, 'kiyi')).toMatchObject({ earned: 0, varieties: 0, lines: [] });
   });
 
   it('pazar kedisi en pahalı balığı hedefler ve bir tane çalar', () => {
     const c = { hamsi: 5, kalkan: 1, cizme: 2 };
-    expect(catTarget(sellCatch(c, 'olta', 'kiyi'))).toBe('kalkan');
+    expect(catTarget(sellCatch(c, 'kiyi'))).toBe('kalkan');
     expect(afterTheft(c, 'kalkan')).toEqual({ hamsi: 5, cizme: 2 });
     expect(afterTheft(c, 'hamsi')).toEqual({ hamsi: 4, kalkan: 1, cizme: 2 });
-    expect(catTarget(sellCatch({ naylon: 3 }, 'marti', 'kiyi'))).toBeNull();
+    expect(catTarget(sellCatch({ naylon: 3 }, 'kiyi'))).toBeNull();
   });
 });
 
 describe('dükkân', () => {
-  it('oltalar pahalandıkça derine iner; ilk olta ve yem bedava', () => {
-    const depths = ROD_ORDER.map((id) => RODS[id].depth);
+  it('misinalar pahalandıkça derine iner; ilk olta, misina ve yem bedava', () => {
+    const depths = LINE_ORDER.map((id) => LINES[id].depth);
     expect([...depths].sort((a, b) => a - b)).toEqual(depths);
     expect(RODS.kamis.price).toBe(0);
+    expect(LINES.ince.price).toBe(0);
     expect(BAITS.ekmek.price).toBe(0);
   });
 
@@ -95,23 +84,6 @@ describe('dükkân', () => {
     expect(b.bait).toBe('solucan');
   });
 
-  it('martı yükseltmesi: fiyat taban × 1.8^seviye; para yetmezse ya da en üstteyse alınmaz', () => {
-    expect(upgradeCost('dalis', 0)).toBe(140);
-    expect(upgradeCost('dalis', 1)).toBe(252);
-    expect(upgradeCost('dalis', 4)).toBeNull();
-    expect(upgradeValue('nefes', 99)).toBe(3.7);
-
-    const p = defaultProfile();
-    p.money = 160;
-    const next = buyUpgrade(p, 'gaga')!;
-    expect(next.money).toBe(10);
-    expect(next.upgrades.gaga).toBe(1);
-    expect(buyUpgrade(next, 'gaga')).toBeNull();
-    const rich = { ...defaultProfile(), money: 1e9 };
-    rich.upgrades.simit = 2;
-    expect(buyUpgrade(rich, 'simit')).toBeNull();
-  });
-
   it('bölgeler sırayla ve parayla açılır', () => {
     const p = defaultProfile();
     p.money = 599;
@@ -131,25 +103,13 @@ describe('sefer uygulama', () => {
     const p = defaultProfile();
     p.logbook.hamsi = { count: 2 };
     const c = { hamsi: 4, lufer: 1, cizme: 2 };
-    const market = sellCatch(c, 'olta', 'kiyi');
-    const { profile, summary } = applyTrip(p, { mode: 'olta', zone: 'kiyi', catch: c, market });
+    const market = sellCatch(c, 'kiyi');
+    const { profile, summary } = applyTrip(p, { zone: 'kiyi', catch: c, market });
     expect(profile.money).toBe(market.earned);
-    expect(profile.lastMode).toBe('olta');
+    expect(profile.lastZone).toBe('kiyi');
     expect(profile.logbook).toEqual({ hamsi: { count: 6 }, lufer: { count: 1 } });
     expect(profile.stats).toEqual({ trips: 1, totalMoney: market.earned, totalFish: 5 });
-    expect(summary).toEqual({ mode: 'olta', zone: 'kiyi', earned: market.earned, fish: 5, newSpecies: ['lufer'] });
-  });
-
-  it('martı: son bölge değişmez, özet bölgesiz', () => {
-    const p = defaultProfile();
-    p.zones.bogaz = true;
-    p.lastZone = 'bogaz';
-    const c = { istavrit: 3 };
-    const { profile, summary } = applyTrip(p, { mode: 'marti', zone: 'kiyi', catch: c, market: sellCatch(c, 'marti', 'kiyi') });
-    expect(profile.lastZone).toBe('bogaz');
-    expect(profile.lastMode).toBe('marti');
-    expect(summary.zone).toBeNull();
-    expect(summary.earned).toBe(45);
+    expect(summary).toEqual({ zone: 'kiyi', earned: market.earned, fish: 5, newSpecies: ['lufer'] });
   });
 });
 

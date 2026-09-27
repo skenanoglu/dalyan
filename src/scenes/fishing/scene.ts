@@ -1,7 +1,7 @@
 import './fishing.css';
 import { deferred, onAction, type SceneFactory } from '../../app/scene';
 import type { FishingIn, FishingOut } from '../../app/types';
-import { BAITS, RODS } from '../../app/gear';
+import { BAITS, BOATS, HOOKS, LINES, RODS } from '../../app/gear';
 import { NIGHT, WEATHER } from '../../app/weather';
 import { catchCount } from '../../app/catch';
 import { catchListHtml } from '../../ui/catch-list';
@@ -21,7 +21,8 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
       <header class="f-hud" data-el="hud">
         <div class="f-chip" data-el="timeChip"><b data-el="time"></b><small>SN</small></div>
         <div class="f-zone"><b data-el="zone"></b><em data-el="weather"></em><small data-el="depth"></small></div>
-        <div class="f-chip"><b data-el="bucket">0</b><small>KOVA</small></div>
+        <div class="f-chip" data-el="bucketChip"><b data-el="bucket">0</b><small>KOVA</small></div>
+        <button class="f-btn-pause" data-act="pause" aria-label="Duraklat">⏸</button>
       </header>
       <p class="f-hint" data-el="hint">▼ ile oltayı indir</p>
       <p class="f-banner" data-el="banner" hidden></p>
@@ -39,6 +40,7 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
         <div class="f-panel" data-panel="pause" hidden>
           <h3>Duraklatıldı</h3>
           <button class="btn primary" data-act="resume">Devam</button>
+          <button class="btn" data-act="stop">İstediğim Zaman: Şimdi Bitir</button>
         </div>
         <div class="f-panel" data-panel="summary" hidden>
           <h3>Av bitti</h3>
@@ -52,7 +54,7 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
   const el = (name: string): HTMLElement => root.querySelector(`[data-el="${name}"]`) as HTMLElement;
   const canvas = root.querySelector('canvas')!;
   const ctx = canvas.getContext('2d')!;
-  const hud = { time: el('time'), timeChip: el('timeChip'), bucket: el('bucket'), depth: el('depth'), hint: el('hint') };
+  const hud = { time: el('time'), timeChip: el('timeChip'), bucket: el('bucket'), bucketChip: el('bucketChip'), depth: el('depth'), hint: el('hint') };
   el('zone').textContent = '';
 
   const sfx = new FishingSfx();
@@ -62,14 +64,21 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
   let cssW = Math.max(1, canvas.clientWidth);
   let cssH = Math.max(1, canvas.clientHeight);
   const rod = RODS[input.rod];
+  const line = LINES[input.line ?? 'ince'];
+  const hook = HOOKS[input.hook ?? 'adi'];
+  const boat = BOATS[input.boat ?? 'sandal'];
   const world = new FishingWorld({
     zone: input.zone,
     viewHeight: (cssH * W) / cssW,
-    misinaM: rod.depth,
+    misinaM: line.depth,
     inisHizi: rod.drop,
     makara: rod.reel,
-    bonusSeconds: 0,
+    duration: input.duration ?? 90,
     baitLikes: BAITS[input.bait].likes,
+    hookMaxPrice: hook.maxPrice,
+    lineDurability: line.durability,
+    sharkReady: Boolean(rod.sharkReady && line.sharkReady),
+    bucketCap: boat.capacity,
     weather: input.weather,
     night: input.night,
   });
@@ -142,6 +151,14 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
       paused = false;
       showPanel(null);
       sfx.resume();
+    } else if (act === 'pause' && !paused && !world.over) {
+      paused = true;
+      controls.releaseAll();
+      showPanel('pause');
+    } else if (act === 'stop') {
+      paused = false;
+      showPanel(null);
+      world.end();
     } else if (act === 'finish' && !finished) {
       finished = true;
       resolve({ catch: { ...world.catch } });
@@ -164,7 +181,8 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
     const bucket = catchCount(world.catch, true);
     if (bucket !== lastBucket) {
       lastBucket = bucket;
-      hud.bucket.textContent = String(bucket);
+      hud.bucket.textContent = Number.isFinite(world.bucketCap) ? `${bucket}/${world.bucketCap}` : String(bucket);
+      hud.bucketChip.classList.toggle('full', bucket >= world.bucketCap);
     }
     let depth = '';
     if (world.hook.y > SURFACE) {

@@ -3,9 +3,9 @@ import { deferred, onAction, type SceneFactory } from '../../app/scene';
 import type { Catch, MarketIn, MarketOut, SpeciesId } from '../../app/types';
 import { SPECIES } from '../../app/species';
 import { ZONES } from '../../app/zones';
-import { MODE_NAMES } from '../../app/modes';
 import { VARIETY_MAX, sellCatch, varietyMultiplier } from '../../app/progress';
 import { money, signedMoney } from '../../app/format';
+import { CAT_SVG } from './cat';
 
 const times = (v: number): string => `×${v.toFixed(1)}`;
 
@@ -32,9 +32,9 @@ export function afterTheft(c: Catch, sp: SpeciesId): Catch {
 /** Karaköy Balık Pazarı: kova türlerine göre satılır, çeşit arttıkça kazanç çarpanı büyür. Kedi fırsat kollar. */
 export const marketScene: SceneFactory<MarketIn, MarketOut> = (root, input) => {
   const { promise, resolve } = deferred<MarketOut>();
-  const where = input.mode === 'olta' ? `${MODE_NAMES.olta} · ${ZONES[input.zone].name}` : `${MODE_NAMES.marti} · Boğaz`;
+  const where = `Olta · ${ZONES[input.zone].name}`;
   let caught: Catch = { ...input.catch };
-  let sale = sellCatch(caught, input.mode, input.zone);
+  let sale = sellCatch(caught, input.zone);
   const timers: number[] = [];
   let raf = 0;
   let catState: 'none' | 'walking' | 'gone' = 'none';
@@ -79,7 +79,7 @@ export const marketScene: SceneFactory<MarketIn, MarketOut> = (root, input) => {
       <div class="bz-body" data-el="body">${receipt(true)}</div>
       <p class="bz-cat-note" data-el="note" hidden></p>
       <button class="btn primary bz-done" data-act="done" style="--i:${sale.lines.length + 1}">Limana Dön</button>
-      <button class="bz-cat" data-act="shoo" aria-label="Kediyi kovala" hidden>🐈</button>
+      <button class="bz-cat" data-act="shoo" aria-label="Kediyi kovala" hidden>${CAT_SVG}</button>
     </div>`;
 
   const el = (name: string): HTMLElement => root.querySelector(`[data-el="${name}"]`) as HTMLElement;
@@ -130,7 +130,7 @@ export const marketScene: SceneFactory<MarketIn, MarketOut> = (root, input) => {
         catState = 'gone';
         caught = afterTheft(caught, target);
         const before = sale.earned;
-        sale = sellCatch(caught, input.mode, input.zone);
+        sale = sellCatch(caught, input.zone);
         el('body').classList.add('still');
         el('body').innerHTML = receipt(false);
         countUp(before, 0);

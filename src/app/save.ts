@@ -1,11 +1,14 @@
-import type { BaitId, ModeId, RodId, SpeciesId, Upgrades, ZoneId } from './types';
-import { UPGRADE_ORDER, defaultUpgrades, maxLevel } from './upgrades';
+import type { BaitId, BoatId, HookId, LineId, RodId, SpeciesId, ZoneId } from './types';
 import { ZONE_ORDER, isZoneId } from './zones';
 import { SPECIES_ORDER } from './species';
-import { BAIT_ORDER, ROD_ORDER, isBaitId, isRodId } from './gear';
+import { BAIT_ORDER, BOAT_ORDER, HOOK_ORDER, LINE_ORDER, ROD_ORDER, isBaitId, isBoatId, isHookId, isLineId, isRodId } from './gear';
 
 export const SAVE_KEY = 'dalyan.profil';
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 4;
+
+/** Balık tutma sahnesinde seçilebilecek av süreleri (sn). */
+export const FISH_SECONDS_OPTIONS = [15, 30, 45, 60, 90] as const;
+const DEFAULT_FISH_SECONDS = 90;
 
 export interface Settings {
   sound: boolean;
@@ -19,15 +22,21 @@ export interface LogEntry {
 export interface Profile {
   v: number;
   money: number;
-  upgrades: Upgrades;
   zones: Record<ZoneId, boolean>;
-  /** Sahip olunan olta ve yemler, seçili olanlar. */
+  /** Sahip olunan olta, misina, iğne, yem ve tekneler; seçili olanlar. */
   rods: Record<RodId, boolean>;
   rod: RodId;
+  lines: Record<LineId, boolean>;
+  line: LineId;
+  hooks: Record<HookId, boolean>;
+  hook: HookId;
   baits: Record<BaitId, boolean>;
   bait: BaitId;
+  boats: Record<BoatId, boolean>;
+  boat: BoatId;
+  /** Son seçilen av süresi (sn). */
+  fishSeconds: number;
   lastZone: ZoneId;
-  lastMode: ModeId;
   /** Olta için son seçilen zaman: gece mi. */
   night: boolean;
   logbook: Partial<Record<SpeciesId, LogEntry>>;
@@ -42,14 +51,19 @@ export function defaultProfile(): Profile {
   return {
     v: SAVE_VERSION,
     money: 0,
-    upgrades: defaultUpgrades(),
     zones: flags(ZONE_ORDER, ['kiyi']),
     rods: flags(ROD_ORDER, ['kamis']),
     rod: 'kamis',
+    lines: flags(LINE_ORDER, ['ince']),
+    line: 'ince',
+    hooks: flags(HOOK_ORDER, ['adi']),
+    hook: 'adi',
     baits: flags(BAIT_ORDER, ['ekmek']),
     bait: 'ekmek',
+    boats: flags(BOAT_ORDER, ['sandal']),
+    boat: 'sandal',
+    fishSeconds: DEFAULT_FISH_SECONDS,
     lastZone: 'kiyi',
-    lastMode: 'olta',
     night: false,
     logbook: {},
     settings: { sound: true, haptics: true },
@@ -80,9 +94,6 @@ export function parseProfile(raw: string | null): Profile {
   if (!isObj(data)) return p;
 
   p.money = int(data.money) ?? 0;
-  if (isObj(data.upgrades)) {
-    for (const id of UPGRADE_ORDER) p.upgrades[id] = int(data.upgrades[id], 0, maxLevel(id)) ?? 0;
-  }
   if (isObj(data.zones)) {
     for (const z of ZONE_ORDER) p.zones[z] = bool(data.zones[z], p.zones[z]);
   }
@@ -90,13 +101,24 @@ export function parseProfile(raw: string | null): Profile {
   if (isObj(data.rods)) for (const r of ROD_ORDER) p.rods[r] = bool(data.rods[r], p.rods[r]);
   p.rods.kamis = true;
   if (isRodId(data.rod) && p.rods[data.rod]) p.rod = data.rod;
+  if (isObj(data.lines)) for (const l of LINE_ORDER) p.lines[l] = bool(data.lines[l], p.lines[l]);
+  p.lines.ince = true;
+  if (isLineId(data.line) && p.lines[data.line]) p.line = data.line;
+  if (isObj(data.hooks)) for (const h of HOOK_ORDER) p.hooks[h] = bool(data.hooks[h], p.hooks[h]);
+  p.hooks.adi = true;
+  if (isHookId(data.hook) && p.hooks[data.hook]) p.hook = data.hook;
   if (isObj(data.baits)) for (const b of BAIT_ORDER) p.baits[b] = bool(data.baits[b], p.baits[b]);
   p.baits.ekmek = true;
   if (isBaitId(data.bait) && p.baits[data.bait]) p.bait = data.bait;
+  if (isObj(data.boats)) for (const bt of BOAT_ORDER) p.boats[bt] = bool(data.boats[bt], p.boats[bt]);
+  p.boats.sandal = true;
+  if (isBoatId(data.boat) && p.boats[data.boat]) p.boat = data.boat;
+  p.fishSeconds = (FISH_SECONDS_OPTIONS as readonly number[]).includes(data.fishSeconds as number)
+    ? (data.fishSeconds as number)
+    : DEFAULT_FISH_SECONDS;
   if (typeof data.lastZone === 'string' && isZoneId(data.lastZone) && p.zones[data.lastZone]) {
     p.lastZone = data.lastZone;
   }
-  if (data.lastMode === 'olta' || data.lastMode === 'marti') p.lastMode = data.lastMode;
   p.night = bool(data.night, false);
   if (isObj(data.logbook)) {
     for (const id of SPECIES_ORDER) {

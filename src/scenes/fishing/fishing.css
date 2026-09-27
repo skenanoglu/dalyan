@@ -43,6 +43,19 @@
 .f-chip b { font-size: 22px; }
 .f-chip small { margin-top: 3px; font-size: 10px; letter-spacing: 1px; opacity: 0.85; }
 .f-chip.low { background: rgba(170, 30, 30, 0.85); animation: f-blink 0.5s steps(2) infinite; }
+.f-chip.full { background: rgba(170, 120, 20, 0.85); }
+
+.f-btn-pause {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(5, 35, 60, 0.62);
+  color: #fff;
+  font-size: 16px;
+  pointer-events: auto;
+}
 
 .f-zone {
   flex: 1;

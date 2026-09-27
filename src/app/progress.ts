@@ -1,9 +1,8 @@
-import type { BaitId, Catch, MarketOut, ModeId, RodId, SaleLine, SpeciesId, TripSummary, UpgradeId, ZoneId } from './types';
+import type { BaitId, BoatId, Catch, HookId, LineId, MarketOut, RodId, SaleLine, SpeciesId, TripSummary, ZoneId } from './types';
 import type { Profile } from './save';
 import { SPECIES, SPECIES_ORDER } from './species';
 import { ZONES, ZONE_ORDER } from './zones';
-import { upgradeCost } from './upgrades';
-import { BAITS, RODS } from './gear';
+import { BAITS, BOATS, HOOKS, LINES, RODS } from './gear';
 import { catchCount } from './catch';
 
 // ---------- Bölgeler ----------
@@ -20,22 +19,6 @@ export function buyZone(p: Profile, id: ZoneId): Profile | null {
   const next = structuredClone(p);
   next.money -= ZONES[id].price;
   next.zones[id] = true;
-  return next;
-}
-
-// ---------- Yükseltmeler ----------
-
-export function canBuyUpgrade(p: Profile, id: UpgradeId): boolean {
-  const cost = upgradeCost(id, p.upgrades[id]);
-  return cost !== null && p.money >= cost;
-}
-
-export function buyUpgrade(p: Profile, id: UpgradeId): Profile | null {
-  const cost = upgradeCost(id, p.upgrades[id]);
-  if (cost === null || p.money < cost) return null;
-  const next = structuredClone(p);
-  next.money -= cost;
-  next.upgrades[id]++;
   return next;
 }
 
@@ -64,6 +47,42 @@ export function buyBait(p: Profile, id: BaitId): Profile | null {
   return next;
 }
 
+// ---------- Misina, iğne ve tekne ----------
+
+export const canBuyLine = (p: Profile, id: LineId): boolean => !p.lines[id] && p.money >= LINES[id].price;
+export const canBuyHook = (p: Profile, id: HookId): boolean => !p.hooks[id] && p.money >= HOOKS[id].price;
+export const canBuyBoat = (p: Profile, id: BoatId): boolean => !p.boats[id] && p.money >= BOATS[id].price;
+
+/** Misinayı alır ve hemen takar. */
+export function buyLine(p: Profile, id: LineId): Profile | null {
+  if (!canBuyLine(p, id)) return null;
+  const next = structuredClone(p);
+  next.money -= LINES[id].price;
+  next.lines[id] = true;
+  next.line = id;
+  return next;
+}
+
+/** İğneyi alır ve hemen takar. */
+export function buyHook(p: Profile, id: HookId): Profile | null {
+  if (!canBuyHook(p, id)) return null;
+  const next = structuredClone(p);
+  next.money -= HOOKS[id].price;
+  next.hooks[id] = true;
+  next.hook = id;
+  return next;
+}
+
+/** Tekneyi alır ve hemen biner. */
+export function buyBoat(p: Profile, id: BoatId): Profile | null {
+  if (!canBuyBoat(p, id)) return null;
+  const next = structuredClone(p);
+  next.money -= BOATS[id].price;
+  next.boats[id] = true;
+  next.boat = id;
+  return next;
+}
+
 // ---------- Pazar ----------
 
 /** Farklı tür başına +%10, en fazla ×1.8. */
@@ -74,16 +93,15 @@ export function varietyMultiplier(varieties: number): number {
   return Math.min(VARIETY_MAX, 1 + VARIETY_STEP * Math.max(0, varieties - 1));
 }
 
-/** Tane fiyatı: tür fiyatı × bölge çarpanı (oltada). Çöp cezası çarpansızdır. */
-export function unitPrice(id: SpeciesId, mode: ModeId, zone: ZoneId): number {
+/** Tane fiyatı: tür fiyatı × bölge çarpanı. Çöp cezası çarpansızdır. */
+export function unitPrice(id: SpeciesId, zone: ZoneId): number {
   const s = SPECIES[id];
   if (s.price < 0) return s.price;
-  const zoneX = mode === 'olta' ? ZONES[zone].priceMultiplier : 1;
-  return Math.round(s.price * zoneX);
+  return Math.round(s.price * ZONES[zone].priceMultiplier);
 }
 
 /** Kovanın pazardaki satışı: türlerin toplamı × çeşit çarpanı − çöp cezası. */
-export function sellCatch(c: Catch, mode: ModeId, zone: ZoneId): MarketOut {
+export function sellCatch(c: Catch, zone: ZoneId): MarketOut {
   const lines: SaleLine[] = [];
   let base = 0;
   let penalty = 0;
@@ -91,7 +109,7 @@ export function sellCatch(c: Catch, mode: ModeId, zone: ZoneId): MarketOut {
   for (const sp of SPECIES_ORDER) {
     const count = c[sp] ?? 0;
     if (count <= 0) continue;
-    const price = unitPrice(sp, mode, zone);
+    const price = unitPrice(sp, zone);
     const total = price * count;
     lines.push({ sp, count, price, total });
     if (total < 0) penalty -= total;
@@ -116,7 +134,6 @@ export function sellCatch(c: Catch, mode: ModeId, zone: ZoneId): MarketOut {
 // ---------- Sefer ----------
 
 export interface TripInput {
-  mode: ModeId;
   zone: ZoneId;
   catch: Catch;
   market: MarketOut;
@@ -127,8 +144,7 @@ export function applyTrip(p: Profile, t: TripInput): { profile: Profile; summary
   const next = structuredClone(p);
   const earned = Math.max(0, Math.round(t.market.earned));
   next.money += earned;
-  next.lastMode = t.mode;
-  if (t.mode === 'olta') next.lastZone = t.zone;
+  next.lastZone = t.zone;
   next.stats.trips++;
   next.stats.totalMoney += earned;
 
@@ -148,8 +164,7 @@ export function applyTrip(p: Profile, t: TripInput): { profile: Profile; summary
   return {
     profile: next,
     summary: {
-      mode: t.mode,
-      zone: t.mode === 'olta' ? t.zone : null,
+      zone: t.zone,
       earned,
       fish: catchCount(t.catch),
       newSpecies,

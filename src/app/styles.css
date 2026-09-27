@@ -233,7 +233,6 @@ button:disabled { cursor: default; opacity: 0.45; }
   border: 1px solid var(--line);
 }
 .mode-olta { background: linear-gradient(180deg, rgba(31, 181, 232, 0.14), rgba(255, 255, 255, 0.02)); }
-.mode-marti { background: linear-gradient(180deg, rgba(255, 200, 87, 0.12), rgba(255, 255, 255, 0.02)); }
 .mode-head { display: flex; align-items: center; gap: 12px; }
 .mode-icon {
   display: grid;
@@ -316,7 +315,6 @@ button:disabled { cursor: default; opacity: 0.45; }
 }
 .stub-meta { margin: 0; color: var(--dim); line-height: 1.5; }
 .stub-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 12px; }
-.stub-gull { background: linear-gradient(180deg, #2a4a86 0%, #6a5d9a 45%, #0b3a66 46%, #06213d 100%); }
 
 .catch li.junk { color: var(--dim); }
 .empty { color: var(--dim); }
