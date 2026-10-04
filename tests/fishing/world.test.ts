@@ -235,8 +235,7 @@ describe('av dünyası', () => {
 
 /** Zıpkınla dalış: dalgıç suya iner, tekne onu izler. */
 function dive(extra: Partial<WorldOptions> = {}): FishingWorld {
-  const w = empty({ diver: { depthM: 12, speed: 150, durability: 0 }, ...extra });
-  return w;
+  return empty({ diver: { depthM: 12, speed: 150, durability: 0, ammo: 30 }, ...extra });
 }
 const fire: Input = { ...idle, fire: true };
 const swimDown: Input = { ...idle, down: true };
@@ -280,6 +279,22 @@ describe('zıpkınla dalış', () => {
     expect(w.spears.length + w.fishes.length).toBeLessThanOrEqual(1);
   });
 
+  it('her atış bir zıpkın harcar; zıpkın bitince atış yapılamaz', () => {
+    const w = dive({ diver: { depthM: 12, speed: 150, durability: 0, ammo: 2 } });
+    expect(w.ammo).toBe(2);
+    run(w, 1, swimDown);
+    w.update(STEP, fire);
+    expect(w.ammo).toBe(1);
+    w.diver.cool = 0;
+    w.update(STEP, fire);
+    expect(w.ammo).toBe(0);
+    w.diver.cool = 0;
+    w.spears = [];
+    w.update(STEP, fire);
+    expect(w.ammo).toBe(0);
+    expect(w.spears).toHaveLength(0);
+  });
+
   it('zıpkın çöpe takılmaz; kova doluysa balık vurulmaz', () => {
     const w = dive({ bucketCap: 1 });
     run(w, 1, swimDown);
@@ -308,7 +323,7 @@ describe('zıpkınla dalış', () => {
     expect(before - w.timeLeft).toBeCloseTo(5 + STEP, 3);
     expect(w.diver.stun).toBeGreaterThan(0);
 
-    const strong = dive({ diver: { depthM: 12, speed: 150, durability: 3 } });
+    const strong = dive({ diver: { depthM: 12, speed: 150, durability: 3, ammo: 30 } });
     run(strong, 1, swimDown);
     const b2 = strong.timeLeft;
     putAt(strong, 'kopekbaligi', strong.diver.x, strong.diver.y);

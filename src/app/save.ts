@@ -1,7 +1,7 @@
 import type { BaitId, BoatId, FishMode, HookId, LineId, RodId, SpeciesId, TankId, ZoneId } from './types';
 import { ZONE_ORDER, isZoneId } from './zones';
 import { SPECIES_ORDER, isSpeciesId } from './species';
-import { BAIT_ORDER, BOAT_ORDER, HOOK_ORDER, LINE_ORDER, MAX_HOOK_SLOTS, ROD_ORDER, TANK_ORDER, isBaitId, isBoatId, isHookId, isLineId, isRodId, isTankId } from './gear';
+import { BAIT_ORDER, BOAT_ORDER, HOOK_ORDER, LINE_ORDER, MAX_HARPOON_LEVEL, MAX_HOOK_SLOTS, ROD_ORDER, TANK_ORDER, isBaitId, isBoatId, isHookId, isLineId, isRodId, isTankId } from './gear';
 import { ACHIEVEMENT_ORDER, type AchievementId } from './achievements';
 import { defaultDaily, type DailyQuestState, type DailyState } from './quests';
 import { defaultReferral, isReferralCode, type ReferralState } from './referral';
@@ -40,7 +40,8 @@ export interface Profile {
   boats: Record<BoatId, boolean>;
   boat: BoatId;
   /** Zıpkın alındı mı; sahip olunan dalış tüpleri ve seçili tüp. */
-  harpoon: boolean;
+  /** Zıpkın seviyesi (0 = zıpkın yok); seviye arttıkça dalış başına zıpkın sayısı artar. */
+  harpoonLevel: number;
   tanks: Record<TankId, boolean>;
   tank: TankId;
   /** Av şekli: olta ya da zıpkın (zıpkın için zıpkın + seçili tüp gerekir). */
@@ -77,7 +78,7 @@ export function defaultProfile(): Profile {
     baitSlots: ['ekmek'],
     boats: flags(BOAT_ORDER, ['sandal']),
     boat: 'sandal',
-    harpoon: false,
+    harpoonLevel: 0,
     tanks: flags(TANK_ORDER, []),
     tank: 'mini',
     fishMode: 'olta',
@@ -139,12 +140,13 @@ export function parseProfile(raw: string | null): Profile {
   if (isObj(data.boats)) for (const bt of BOAT_ORDER) p.boats[bt] = bool(data.boats[bt], p.boats[bt]);
   p.boats.sandal = true;
   if (isBoatId(data.boat) && p.boats[data.boat]) p.boat = data.boat;
-  p.harpoon = bool(data.harpoon, false);
+  // Eski kayıtlardaki tek kademeli zıpkın (harpoon: true) seviye 1 sayılır.
+  p.harpoonLevel = Math.min(MAX_HARPOON_LEVEL, int(data.harpoonLevel) ?? (data.harpoon === true ? 1 : 0));
   if (isObj(data.tanks)) for (const t of TANK_ORDER) p.tanks[t] = bool(data.tanks[t], false);
   if (isTankId(data.tank) && p.tanks[data.tank]) p.tank = data.tank;
   else p.tank = TANK_ORDER.find((t) => p.tanks[t]) ?? 'mini';
   // Zıpkın modu yalnızca zıpkın ve seçili tüp varsa geçerlidir.
-  p.fishMode = data.fishMode === 'zipkin' && p.harpoon && p.tanks[p.tank] ? 'zipkin' : 'olta';
+  p.fishMode = data.fishMode === 'zipkin' && p.harpoonLevel > 0 && p.tanks[p.tank] ? 'zipkin' : 'olta';
   p.fishSeconds = (FISH_SECONDS_OPTIONS as readonly number[]).includes(data.fishSeconds as number)
     ? (data.fishSeconds as number)
     : DEFAULT_FISH_SECONDS;

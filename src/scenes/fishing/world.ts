@@ -138,7 +138,7 @@ export interface WorldOptions {
   /** Teknenin görünümü (bkz. draw.ts); varsayılan sandal. */
   boatId?: BoatId;
   /** Verilirse olta yerine zıpkınla dalış modudur: tüpün derinliği, hızı ve dayanıklılığı. */
-  diver?: { depthM: number; speed: number; durability: number };
+  diver?: { depthM: number; speed: number; durability: number; /** Dalış başına atılabilecek zıpkın sayısı. */ ammo: number };
   /** Hava (varsayılan güneşli). */
   weather?: WeatherId;
   /** Gece mi (varsayılan gündüz). */
@@ -190,6 +190,8 @@ export class FishingWorld {
   readonly hooks: HookPoint[];
   readonly diver: Diver = { x: 0, y: SURFACE + 8, vx: 0, vy: 0, dir: 1, stun: 0, cool: 0 };
   spears: Spear[] = [];
+  /** Kalan zıpkın sayısı; bitince dalgıç atış yapamaz. */
+  ammo = 0;
   gulls: Gull[] = [];
   gullTimer = 0;
   fishes: Fish[] = [];
@@ -245,6 +247,7 @@ export class FishingWorld {
     this.diveDepthM = o.diver?.depthM ?? 0;
     this.diveSpeed = o.diver?.speed ?? 0;
     this.diveDurability = o.diver?.durability ?? 0;
+    this.ammo = o.diver?.ammo ?? 0;
     this.gullTimer = this.rand(10, 22);
     const hookCount = Math.max(1, Math.min(3, Math.round(o.hookCount ?? 1)));
     const tipX = this.rodTip().x;
@@ -658,12 +661,19 @@ export class FishingWorld {
       this.bubbles.push({ x: d.x - d.dir * 8 + this.rand(-3, 3), y: d.y - 6, r: this.rand(1.5, 3), v: this.rand(30, 60), w: this.rand(0, 6) });
     }
 
-    if (input.fire && d.cool <= 0 && d.stun <= 0 && d.y > SURFACE + 14) this.throwSpear(iy);
+    if (input.fire && d.cool <= 0 && d.stun <= 0 && d.y > SURFACE + 14) {
+      if (this.ammo > 0) this.throwSpear(iy);
+      else {
+        d.cool = 1.5;
+        this.popup(d.x, d.y - 30, 'Zıpkın bitti!', '#ffb347');
+      }
+    }
   }
 
   private throwSpear(iy: number): void {
     const d = this.diver;
     d.cool = SPEAR_COOL;
+    this.ammo--;
     // yön: bakılan taraf; ↑/↓ basılıysa çapraz
     const ax = d.dir;
     const ay = iy * 0.7;

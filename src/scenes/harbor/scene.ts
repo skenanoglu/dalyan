@@ -5,7 +5,7 @@ import { FISH_SECONDS_OPTIONS } from '../../app/save';
 import { authErrorMessage, firebaseReady, signIn, signInWithGoogle, signOutUser, signUp, type User } from '../../app/cloud';
 import { ZONES, ZONE_ORDER } from '../../app/zones';
 import { SPECIES, SPECIES_ORDER } from '../../app/species';
-import { BAITS, BAIT_ORDER, BOATS, BOAT_ORDER, HARPOON, HOOKS, HOOK_ORDER, LINES, LINE_ORDER, RODS, ROD_ORDER, TANKS, TANK_ORDER } from '../../app/gear';
+import { BAITS, BAIT_ORDER, BOATS, BOAT_ORDER, HARPOONS, HOOKS, HOOK_ORDER, LINES, LINE_ORDER, RODS, ROD_ORDER, TANKS, TANK_ORDER } from '../../app/gear';
 import { NIGHT, WEATHER } from '../../app/weather';
 import { ACHIEVEMENTS, ACHIEVEMENT_ORDER } from '../../app/achievements';
 import { REFERRAL_SHARE_BONUS, REFERRAL_WELCOME_BONUS, claimShareBonus } from '../../app/referral';
@@ -401,11 +401,13 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
   ).join('');
   const mode = effectiveMode(p);
   const tank = TANKS[p.tank];
+  const harpoon = HARPOONS[Math.max(1, p.harpoonLevel) - 1];
   const reach = Math.min(mode === 'zipkin' ? tank.depth : line.depth, z.depth);
   const badges = (
     mode === 'zipkin'
       ? [
-          { icon: HARPOON.icon, text: HARPOON.name },
+          { icon: harpoon.icon, text: harpoon.name },
+          { icon: '🎯', text: `${harpoon.ammo} zıpkın` },
           { icon: tank.icon, text: tank.name },
           { icon: '📏', text: `${reach} m` },
           { icon: boat.icon, text: `kova ${boat.capacity}` },
@@ -433,7 +435,7 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
         ${
           canDive(p)
             ? `<button class="chip ${mode === 'zipkin' ? 'on' : ''}" data-act="mode" data-arg="zipkin">🤿 Zıpkın</button>`
-            : `<span class="chip locked">🔒 Zıpkın · ${p.harpoon ? 'tüp al' : 'zıpkın + tüp al'}</span>`
+            : `<span class="chip locked">🔒 Zıpkın · ${p.harpoonLevel > 0 ? 'tüp al' : 'zıpkın + tüp al'}</span>`
         }
       </div>
       <div class="row-label">Bölge</div>
@@ -580,15 +582,13 @@ function shopView(p: Profile): string {
     return shopCard(bt.icon, bt.name, `kova ${bt.capacity} balık`, action, owned);
   }).join('');
 
-  const harpoon = shopCard(
-    HARPOON.icon,
-    HARPOON.name,
-    HARPOON.desc,
-    p.harpoon
-      ? '<span class="maxed">Sende</span>'
-      : `<button class="btn buy" data-act="buy-harpoon" ${canBuyHarpoon(p) ? '' : 'disabled'}>${money(HARPOON.price)}</button>`,
-    p.harpoon,
-  );
+  const harpoons = HARPOONS.map((h) => {
+    const owned = h.level <= p.harpoonLevel;
+    const action = owned
+      ? `<span class="maxed">${h.level === p.harpoonLevel ? 'Elinde' : 'Sende'}</span>`
+      : `<button class="btn buy" data-act="buy-harpoon" ${h.level === p.harpoonLevel + 1 && canBuyHarpoon(p) ? '' : 'disabled'}>${money(h.price)}</button>`;
+    return shopCard(h.icon, h.name, `${h.ammo} zıpkın · ${h.desc}`, action, owned);
+  }).join('');
 
   const tanks = TANK_ORDER.map((id) => {
     const t = TANKS[id];
@@ -616,7 +616,7 @@ function shopView(p: Profile): string {
     <h4><span class="h4-icon">🪝</span>İğneler</h4><div class="gear-grid">${hooks}</div>
     <h4><span class="h4-icon">🪱</span>Yemler</h4><div class="gear-grid">${baits}</div>
     <h4><span class="h4-icon">🚤</span>Tekneler</h4><div class="gear-grid">${boats}</div>
-    <h4><span class="h4-icon">🏹</span>Zıpkın</h4><div class="gear-grid">${harpoon}</div>
+    <h4><span class="h4-icon">🏹</span>Zıpkınlar</h4><div class="gear-grid">${harpoons}</div>
     <h4><span class="h4-icon">🤿</span>Dalış tüpleri</h4><div class="gear-grid">${tanks}</div>
     <h4><span class="h4-icon">🗺️</span>Bölgeler</h4><div class="gear-grid">${zones}</div>`;
 }

@@ -1,7 +1,7 @@
 import './fishing.css';
 import { deferred, onAction, type SceneFactory } from '../../app/scene';
 import type { FishingIn, FishingOut } from '../../app/types';
-import { BOATS, HOOKS, LINES, RODS, TANKS, unionBaitLikes } from '../../app/gear';
+import { BOATS, HOOKS, LINES, RODS, TANKS, harpoonAmmo, unionBaitLikes } from '../../app/gear';
 import { NIGHT, WEATHER } from '../../app/weather';
 import { catchCount } from '../../app/catch';
 import { catchListHtml } from '../../ui/catch-list';
@@ -36,7 +36,7 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
           <button class="f-btn" data-key="right" aria-label="Sağa">▶</button>
         </div>
         <div class="f-group" data-el="fireGroup" hidden>
-          <button class="f-btn f-btn-fire" data-key="fire" aria-label="Zıpkın at">🏹</button>
+          <button class="f-btn f-btn-fire" data-key="fire" aria-label="Zıpkın at">🏹<small data-el="ammo"></small></button>
         </div>
         <div class="f-group">
           <button class="f-btn" data-key="down" aria-label="İndir">▼</button>
@@ -70,6 +70,7 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
     hint: el('hint'),
     tensionWrap: el('tensionWrap'),
     tensionFill: el('tensionFill'),
+    ammo: el('ammo'),
   };
   el('zone').textContent = '';
 
@@ -98,7 +99,7 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
     // Dalışta iğne tavanı yok: ulaşılan türleri tüpün derinliği belirler.
     hookMaxPrice: diving ? Infinity : hook.maxPrice,
     lineDurability: line.durability,
-    diver: diving ? { depthM: tank.depth, speed: tank.speed, durability: tank.durability } : undefined,
+    diver: diving ? { depthM: tank.depth, speed: tank.speed, durability: tank.durability, ammo: harpoonAmmo(input.harpoonLevel ?? 1) } : undefined,
     sharkReady: diving ? Boolean(tank.sharkReady) : Boolean(rod.sharkReady && line.sharkReady),
     bucketCap: boat.capacity,
     boatId: input.boat ?? 'sandal',
@@ -222,6 +223,10 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
       hud.depth.textContent = depth;
     }
     hud.hint.hidden = world.hookHasEntered || world.over;
+    if (diving) {
+      hud.ammo.textContent = String(world.ammo);
+      hud.ammo.classList.toggle('empty', world.ammo === 0);
+    }
     const rareHooked = !diving && world.hooks.some((h) => h.fish?.t.rare);
     hud.tensionWrap.hidden = !rareHooked;
     if (rareHooked) {

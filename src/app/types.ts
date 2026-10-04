@@ -66,6 +66,8 @@ export interface FishingIn {
   /** Verilmezse olta; 'zipkin' ise tank ile dalınır (iğne/yem kullanılmaz). */
   mode?: FishMode;
   tank?: TankId;
+  /** Zıpkın seviyesi: dalış başına zıpkın sayısını belirler (verilmezse 1). */
+  harpoonLevel?: number;
   /** Av süresi (sn); verilmezse 90. */
   duration?: number;
   weather: WeatherId;

@@ -22,7 +22,7 @@ import {
   varietyMultiplier,
 } from '../../src/app/progress';
 import { defaultProfile } from '../../src/app/save';
-import { BAITS, HARPOON, LINES, LINE_ORDER, RODS, TANKS } from '../../src/app/gear';
+import { BAITS, HARPOONS, LINES, LINE_ORDER, RODS, TANKS, harpoonAmmo } from '../../src/app/gear';
 import { afterTheft, catTarget } from '../../src/scenes/market/scene';
 import { Rng } from '../../src/app/rng';
 import { rollWeather } from '../../src/app/weather';
@@ -204,7 +204,7 @@ describe('hava tahmini', () => {
 describe('zıpkın ve dalış tüpü', () => {
   it('başlangıçta zıpkın ve tüp yok; dalış yapılamaz, mod olta kalır', () => {
     const p = defaultProfile();
-    expect(p.harpoon).toBe(false);
+    expect(p.harpoonLevel).toBe(0);
     expect(canDive(p)).toBe(false);
     expect(effectiveMode({ ...p, fishMode: 'zipkin' })).toBe('olta');
   });
@@ -213,12 +213,33 @@ describe('zıpkın ve dalış tüpü', () => {
     let p = defaultProfile();
     p.money = 100000;
     p = buyHarpoon(p)!;
-    expect(p.money).toBe(100000 - HARPOON.price);
+    expect(p.money).toBe(100000 - HARPOONS[0].price);
+    expect(p.harpoonLevel).toBe(1);
     expect(canDive(p)).toBe(false);
     p = buyTank(p, 'mini')!;
     expect(canDive(p)).toBe(true);
     expect(effectiveMode({ ...p, fishMode: 'zipkin' })).toBe('zipkin');
+  });
+
+  it('zıpkın seviyesi arttıkça dalış başına zıpkın sayısı 20 artar: 30, 50, 70, 90', () => {
+    expect(HARPOONS.map((h) => h.ammo)).toEqual([30, 50, 70, 90]);
+    expect(harpoonAmmo(0)).toBe(0);
+    expect(harpoonAmmo(2)).toBe(50);
+  });
+
+  it('zıpkın geliştirmeleri sırayla alınır, en üst seviyeden sonra alınamaz', () => {
+    let p = defaultProfile();
+    p.money = 1_000_000;
+    for (let level = 1; level <= HARPOONS.length; level++) {
+      const before = p.money;
+      p = buyHarpoon(p)!;
+      expect(p.harpoonLevel).toBe(level);
+      expect(before - p.money).toBe(HARPOONS[level - 1].price);
+    }
     expect(buyHarpoon(p)).toBeNull();
+    const poor = defaultProfile();
+    poor.money = HARPOONS[0].price - 1;
+    expect(buyHarpoon(poor)).toBeNull();
   });
 
   it('tüpler olta gibi sırayla alınır; para yetse bile kademe atlanamaz', () => {

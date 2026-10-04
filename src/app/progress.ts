@@ -2,7 +2,7 @@ import type { BaitId, BoatId, Catch, FishMode, HookId, LineId, MarketOut, RodId,
 import type { Profile } from './save';
 import { SPECIES, SPECIES_ORDER } from './species';
 import { ZONES, ZONE_ORDER } from './zones';
-import { BAITS, BAIT_ORDER, BOATS, BOAT_ORDER, HARPOON, HOOKS, HOOK_ORDER, HOOK_SLOT_PRICE, LINES, LINE_ORDER, MAX_HOOK_SLOTS, RODS, ROD_ORDER, TANKS, TANK_ORDER } from './gear';
+import { BAITS, BAIT_ORDER, BOATS, BOAT_ORDER, HARPOONS, HOOKS, HOOK_ORDER, HOOK_SLOT_PRICE, LINES, LINE_ORDER, MAX_HOOK_SLOTS, RODS, ROD_ORDER, TANKS, TANK_ORDER, type Harpoon } from './gear';
 import { catchCount } from './catch';
 import { checkAchievements } from './achievements';
 import { advanceDailyQuests } from './quests';
@@ -100,14 +100,21 @@ export function buyBoat(p: Profile, id: BoatId): Profile | null {
 
 // ---------- Zıpkın ve dalış tüpü ----------
 
-export const canBuyHarpoon = (p: Profile): boolean => !p.harpoon && p.money >= HARPOON.price;
+/** Bir sonraki zıpkın seviyesi; en üstteyse null. */
+export const nextHarpoon = (p: Profile): Harpoon | null => HARPOONS[p.harpoonLevel] ?? null;
+export const canBuyHarpoon = (p: Profile): boolean => {
+  const next = nextHarpoon(p);
+  return next !== null && p.money >= next.price;
+};
 export const canBuyTank = (p: Profile, id: TankId): boolean => !p.tanks[id] && prevTierOwned(p.tanks, TANK_ORDER, id) && p.money >= TANKS[id].price;
 
+/** Zıpkını bir üst seviyeye geliştirir (ilk alım seviye 1); kademe atlanamaz. */
 export function buyHarpoon(p: Profile): Profile | null {
-  if (!canBuyHarpoon(p)) return null;
+  const target = nextHarpoon(p);
+  if (!target || !canBuyHarpoon(p)) return null;
   const next = structuredClone(p);
-  next.money -= HARPOON.price;
-  next.harpoon = true;
+  next.money -= target.price;
+  next.harpoonLevel = target.level;
   return next;
 }
 
@@ -122,7 +129,7 @@ export function buyTank(p: Profile, id: TankId): Profile | null {
 }
 
 /** Zıpkınla dalabilmek için zıpkın ve seçili (sahip olunan) bir tüp gerekir. */
-export const canDive = (p: Profile): boolean => p.harpoon && p.tanks[p.tank];
+export const canDive = (p: Profile): boolean => p.harpoonLevel > 0 && p.tanks[p.tank];
 
 /** Seçili av şekli; dalmaya uygun değilse olta. */
 export const effectiveMode = (p: Profile): FishMode => (p.fishMode === 'zipkin' && canDive(p) ? 'zipkin' : 'olta');

@@ -72,11 +72,19 @@ describe('kayıt', () => {
 
   it('zıpkın modu yalnızca zıpkın ve sahip olunan tüp varsa geçerlidir', () => {
     expect(parseProfile(JSON.stringify({ fishMode: 'zipkin' })).fishMode).toBe('olta');
-    expect(parseProfile(JSON.stringify({ fishMode: 'zipkin', harpoon: true })).fishMode).toBe('olta');
-    const ok = parseProfile(JSON.stringify({ fishMode: 'zipkin', harpoon: true, tanks: { orta: true }, tank: 'derin' }));
+    expect(parseProfile(JSON.stringify({ fishMode: 'zipkin', harpoonLevel: 1 })).fishMode).toBe('olta');
+    const ok = parseProfile(JSON.stringify({ fishMode: 'zipkin', harpoonLevel: 2, tanks: { orta: true }, tank: 'derin' }));
+    expect(ok.harpoonLevel).toBe(2);
     // sahip olunmayan tüp seçilemez; sahip olunan ilk tüpe düşer
     expect(ok.tank).toBe('orta');
     expect(ok.fishMode).toBe('zipkin');
+  });
+
+  it('eski kayıttaki tek kademeli zıpkın seviye 1 olur; seviye en üste sıkıştırılır', () => {
+    expect(parseProfile(JSON.stringify({ harpoon: true })).harpoonLevel).toBe(1);
+    expect(parseProfile(JSON.stringify({ harpoon: false })).harpoonLevel).toBe(0);
+    expect(parseProfile(JSON.stringify({ harpoonLevel: 99 })).harpoonLevel).toBe(4);
+    expect(parseProfile(JSON.stringify({ harpoonLevel: 3, harpoon: true })).harpoonLevel).toBe(3);
   });
 
   it('geçersiz başarım kimlikleri ve bozuk tarihler atılır', () => {

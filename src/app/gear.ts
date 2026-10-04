@@ -150,8 +150,41 @@ export const TANKS: Record<TankId, Tank> = {
 
 export const TANK_ORDER: TankId[] = ['mini', 'orta', 'derin', 'teknik'];
 
-/** Zıpkın tek kademedir; dalmak için ayrıca bir tüp gerekir. */
-export const HARPOON = { name: 'Zıpkın', icon: '🏹', price: 3000, desc: 'Suya dalıp balığı zıpkınla vurursun; tüp de gerekir' } as const;
+/** Zıpkın geliştirmesi: her dalışta atılabilecek zıpkın (mermi) sayısı seviyeyle artar. Dalmak için ayrıca bir tüp gerekir. */
+export interface Harpoon {
+  level: number;
+  name: string;
+  icon: string;
+  price: number;
+  desc: string;
+  /** Bir dalışta atılabilecek zıpkın sayısı. */
+  ammo: number;
+}
+
+export const HARPOON_BASE_AMMO = 30;
+export const HARPOON_AMMO_STEP = 20;
+
+const harpoon = (level: number, name: string, price: number, desc: string): Harpoon => ({
+  level,
+  name,
+  icon: '🏹',
+  price,
+  desc,
+  ammo: HARPOON_BASE_AMMO + HARPOON_AMMO_STEP * (level - 1),
+});
+
+/** Sırayla alınır: 30, 50, 70, 90 zıpkın. */
+export const HARPOONS: Harpoon[] = [
+  harpoon(1, 'Ahşap Zıpkın', 3000, 'Suya dalıp balığı vurursun; tüp de gerekir'),
+  harpoon(2, 'Çelik Zıpkın', 6500, 'Daha çok zıpkın taşır'),
+  harpoon(3, 'Karbon Zıpkın', 15000, 'Uzun dalışlara yeter'),
+  harpoon(4, 'Titanyum Zıpkın', 38000, 'En çok zıpkın taşıyan tabanca'),
+];
+
+export const MAX_HARPOON_LEVEL = HARPOONS.length;
+
+/** Seviyeye göre dalış başına zıpkın sayısı; zıpkın yoksa 0. */
+export const harpoonAmmo = (level: number): number => HARPOONS[level - 1]?.ammo ?? 0;
 
 export const isTankId = (v: unknown): v is TankId => typeof v === 'string' && v in TANKS;
 

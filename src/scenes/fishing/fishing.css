@@ -109,7 +109,22 @@
   user-select: none;
 }
 .f-btn.on { background: rgba(255, 210, 63, 0.85); color: #123; }
-.f-btn-fire { border-color: rgba(255, 120, 90, 0.9); font-size: 28px; }
+.f-btn-fire { position: relative; border-color: rgba(255, 120, 90, 0.9); font-size: 28px; }
+.f-btn-fire small {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 24px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: rgba(5, 35, 60, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #fff;
+}
+.f-btn-fire small.empty { background: rgba(170, 30, 30, 0.95); }
 .f-group[hidden] { display: none; }
 
 /* ---------- Paneller ---------- */
