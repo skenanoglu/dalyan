@@ -319,7 +319,14 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
     (s) => `<button class="chip ${s === p.fishSeconds ? 'on' : ''}" data-act="duration" data-arg="${s}">${s} sn</button>`,
   ).join('');
   const reach = Math.min(line.depth, z.depth);
-  const depthNote = line.depth < z.depth ? ` · daha derini için daha uzun misina` : '';
+  const badges = [
+    { icon: rod.icon, text: rod.name },
+    { icon: line.icon, text: `${reach} m` },
+    { icon: hook.icon, text: hook.name },
+    { icon: boat.icon, text: `kova ${boat.capacity}` },
+  ]
+    .map((b) => `<span class="gear-badge"><span class="emoji">${b.icon}</span>${b.text}</span>`)
+    .join('');
 
   return `
     <section class="mode mode-olta">
@@ -337,7 +344,7 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
       <div class="row-label">Süre</div>
       <div class="chips">${durations}</div>
       <p class="forecast ${weather.id}">${weather.icon} Hava: <b>${weather.name}</b>. ${weather.desc}${p.night ? `<br>${NIGHT.icon} ${NIGHT.desc}` : ''}</p>
-      <p class="mode-meta">${rod.name} · ${line.name} (${reach} m'ye kadar${depthNote}) · ${hook.name} · ${boat.name} (kova ${boat.capacity}) <button class="link-btn" data-act="tab" data-arg="donanim">(Donanımı düzenle)</button></p>
+      <div class="gear-summary">${badges}<button class="link-btn" data-act="tab" data-arg="donanim">Donanımı düzenle</button></div>
       <button class="btn primary" data-act="play">Oltayı At</button>
     </section>`;
 }
@@ -346,16 +353,16 @@ function donanimView(p: Profile, rodInfoOpen: boolean): string {
   const rod = RODS[p.rod];
   const cap = rodHookCapacity(p);
   const rods = ROD_ORDER.filter((id) => p.rods[id])
-    .map((id) => `<button class="chip ${id === p.rod ? 'on' : ''}" data-act="use-rod" data-arg="${id}">${RODS[id].name}</button>`)
+    .map((id) => gearSelectCard(RODS[id].icon, RODS[id].name, `${RODS[id].hookCapacity} iğne`, id === p.rod, 'use-rod', id))
     .join('');
   const lines = LINE_ORDER.filter((id) => p.lines[id])
-    .map((id) => `<button class="chip ${id === p.line ? 'on' : ''}" data-act="use-line" data-arg="${id}">${LINES[id].name}</button>`)
+    .map((id) => gearSelectCard(LINES[id].icon, LINES[id].name, `${LINES[id].depth} m`, id === p.line, 'use-line', id))
     .join('');
   const hookTiers = HOOK_ORDER.filter((id) => p.hooks[id])
-    .map((id) => `<button class="chip ${id === p.hook ? 'on' : ''}" data-act="use-hook" data-arg="${id}">${HOOKS[id].name}</button>`)
+    .map((id) => gearSelectCard(HOOKS[id].icon, HOOKS[id].name, `≤ ${money(HOOKS[id].maxPrice)}`, id === p.hook, 'use-hook', id))
     .join('');
   const boats = BOAT_ORDER.filter((id) => p.boats[id])
-    .map((id) => `<button class="chip ${id === p.boat ? 'on' : ''}" data-act="use-boat" data-arg="${id}">${BOATS[id].name}</button>`)
+    .map((id) => gearSelectCard(BOATS[id].icon, BOATS[id].name, `kova ${BOATS[id].capacity}`, id === p.boat, 'use-boat', id))
     .join('');
   const slots = p.baitSlots
     .map((id, i) => {
@@ -390,85 +397,100 @@ function donanimView(p: Profile, rodInfoOpen: boolean): string {
       <button class="icon-btn tiny" data-act="rod-info" aria-label="Olta özellikleri">ℹ️</button>
     </div>
     ${rodInfoOpen ? rodInfoView(p) : ''}
-    <div class="chips wrap">${rods}</div>
+    <div class="gear-grid">${rods}</div>
     <div class="row-label">Misina</div>
-    <div class="chips wrap">${lines}</div>
+    <div class="gear-grid">${lines}</div>
     <div class="row-label">İğne</div>
-    <div class="chips wrap">${hookTiers}</div>
+    <div class="gear-grid">${hookTiers}</div>
     <div class="row-label">Tekne</div>
-    <div class="chips wrap">${boats}</div>
+    <div class="gear-grid">${boats}</div>
     <p class="rig-note">Bir yemi sürükleyip bir iğneye bırak; her iğne kendi yemiyle balık çeker. ${rod.name}: en fazla ${cap} iğne taşır.</p>
     <div class="rig-hooks">${slots}${addSlot}</div>
     <div class="row-label">Yemlerin</div>
     <div class="rig-tray">${tray}</div>`;
 }
 
-function shopRow(title: string, lines: string[], action: string): string {
+function gearSelectCard(icon: string, name: string, stat: string, selected: boolean, act: string, arg: string): string {
   return `
-    <div class="upg">
-      <div><b>${title}</b>${lines.map((l) => `<small>${l}</small>`).join('')}</div>
-      ${action}
+    <button class="gear-card ${selected ? 'owned' : ''}" data-act="${act}" data-arg="${arg}">
+      <span class="gear-card-icon">${icon}</span>
+      <span class="gear-card-body"><b>${name}</b><span class="stat">${stat}</span></span>
+    </button>`;
+}
+
+function shopCard(icon: string, name: string, stat: string, action: string, owned: boolean): string {
+  return `
+    <div class="gear-card shop-card ${owned ? 'owned' : 'buy'}">
+      <span class="gear-card-icon">${icon}</span>
+      <span class="gear-card-body"><b>${name}</b><span class="desc">${stat}</span></span>
+      <span class="gear-card-action">${action}</span>
     </div>`;
 }
 
 function shopView(p: Profile): string {
   const rods = ROD_ORDER.map((id) => {
     const r = RODS[id];
-    const action = p.rods[id]
+    const owned = Boolean(p.rods[id]);
+    const action = owned
       ? `<span class="maxed">${p.rod === id ? 'Elinde' : 'Sende'}</span>`
       : `<button class="btn buy" data-act="buy-rod" data-arg="${id}" ${canBuyRod(p, id) ? '' : 'disabled'}>${money(r.price)}</button>`;
-    return shopRow(r.name, [r.desc, `iniş ×${(r.drop / RODS.kamis.drop).toFixed(1)} · çekiş ×${r.reel}`], action);
+    return shopCard(r.icon, r.name, `iniş ×${(r.drop / RODS.kamis.drop).toFixed(1)} · çekiş ×${r.reel} · ${r.hookCapacity} iğne`, action, owned);
   }).join('');
 
   const lines = LINE_ORDER.map((id) => {
     const l = LINES[id];
-    const action = p.lines[id]
+    const owned = Boolean(p.lines[id]);
+    const action = owned
       ? `<span class="maxed">${p.line === id ? 'Takılı' : 'Sende'}</span>`
       : `<button class="btn buy" data-act="buy-line" data-arg="${id}" ${canBuyLine(p, id) ? '' : 'disabled'}>${money(l.price)}</button>`;
-    return shopRow(l.name, [l.desc, `${l.depth} m · dayanıklılık ${l.durability}/4${l.sharkReady ? ' · köpekbalığına dayanır' : ''}`], action);
+    return shopCard(l.icon, l.name, `${l.depth} m · dayanıklılık ${l.durability}/4${l.sharkReady ? ' · köpekbalığına dayanır' : ''}`, action, owned);
   }).join('');
 
   const hooks = HOOK_ORDER.map((id) => {
     const h = HOOKS[id];
-    const action = p.hooks[id]
+    const owned = Boolean(p.hooks[id]);
+    const action = owned
       ? `<span class="maxed">${p.hook === id ? 'Takılı' : 'Sende'}</span>`
       : `<button class="btn buy" data-act="buy-hook" data-arg="${id}" ${canBuyHook(p, id) ? '' : 'disabled'}>${money(h.price)}</button>`;
-    return shopRow(h.name, [h.desc], action);
+    return shopCard(h.icon, h.name, h.desc, action, owned);
   }).join('');
 
   const baits = BAIT_ORDER.map((id) => {
     const b = BAITS[id];
-    const action = p.baits[id]
+    const owned = Boolean(p.baits[id]);
+    const action = owned
       ? `<span class="maxed">${p.baitSlots.includes(id) ? 'Takılı' : 'Sende'}</span>`
       : `<button class="btn buy" data-act="buy-bait" data-arg="${id}" ${canBuyBait(p, id) ? '' : 'disabled'}>${money(b.price)}</button>`;
-    return shopRow(`${b.icon} ${b.name}`, [b.desc], action);
+    return shopCard(b.icon, b.name, b.desc, action, owned);
   }).join('');
 
   const boats = BOAT_ORDER.map((id) => {
     const bt = BOATS[id];
-    const action = p.boats[id]
+    const owned = Boolean(p.boats[id]);
+    const action = owned
       ? `<span class="maxed">${p.boat === id ? 'Elinde' : 'Sende'}</span>`
       : `<button class="btn buy" data-act="buy-boat" data-arg="${id}" ${canBuyBoat(p, id) ? '' : 'disabled'}>${money(bt.price)}</button>`;
-    return shopRow(bt.name, [bt.desc, `kova: ${bt.capacity} balık`], action);
+    return shopCard(bt.icon, bt.name, `kova ${bt.capacity} balık`, action, owned);
   }).join('');
 
   const zones = ZONE_ORDER.slice(1)
     .map((id) => {
       const z = ZONES[id];
-      const action = p.zones[id]
+      const owned = Boolean(p.zones[id]);
+      const action = owned
         ? '<span class="maxed">Açık</span>'
         : `<button class="btn buy" data-act="buy-zone" data-arg="${id}" ${canBuyZone(p, id) ? '' : 'disabled'}>${money(z.price)}</button>`;
-      return shopRow(z.name, [`${z.depth} m · fiyat ×${z.priceMultiplier}`], action);
+      return shopCard('🗺️', z.name, `${z.depth} m · fiyat ×${z.priceMultiplier}`, action, owned);
     })
     .join('');
 
   return `
-    <h4>🎣 Oltalar</h4>${rods}
-    <h4>🧵 Misinalar</h4>${lines}
-    <h4>🪝 İğneler</h4>${hooks}
-    <h4>🪱 Yemler</h4>${baits}
-    <h4>🚤 Tekneler</h4>${boats}
-    <h4>🗺️ Bölgeler</h4>${zones}`;
+    <h4><span class="h4-icon">🎣</span>Oltalar</h4><div class="gear-grid">${rods}</div>
+    <h4><span class="h4-icon">🧵</span>Misinalar</h4><div class="gear-grid">${lines}</div>
+    <h4><span class="h4-icon">🪝</span>İğneler</h4><div class="gear-grid">${hooks}</div>
+    <h4><span class="h4-icon">🪱</span>Yemler</h4><div class="gear-grid">${baits}</div>
+    <h4><span class="h4-icon">🚤</span>Tekneler</h4><div class="gear-grid">${boats}</div>
+    <h4><span class="h4-icon">🗺️</span>Bölgeler</h4><div class="gear-grid">${zones}</div>`;
 }
 
 function logView(p: Profile): string {

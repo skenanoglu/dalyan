@@ -4,6 +4,7 @@ import type { BaitId, BoatId, HookId, LineId, RodId, SpeciesId } from './types';
 export interface Rod {
   id: RodId;
   name: string;
+  icon: string;
   price: number;
   desc: string;
   /** İniş hızı (px/sn). */
@@ -20,6 +21,7 @@ export interface Rod {
 export interface Line {
   id: LineId;
   name: string;
+  icon: string;
   price: number;
   desc: string;
   /** En derin nokta (metre). */
@@ -33,6 +35,7 @@ export interface Line {
 export interface Hook {
   id: HookId;
   name: string;
+  icon: string;
   price: number;
   desc: string;
   maxPrice: number;
@@ -42,6 +45,7 @@ export interface Hook {
 export interface Boat {
   id: BoatId;
   name: string;
+  icon: string;
   price: number;
   desc: string;
   capacity: number;
@@ -61,13 +65,14 @@ export interface Bait {
 export const BAIT_PULL = 3;
 
 export const RODS: Record<RodId, Rod> = {
-  kamis: { id: 'kamis', name: 'Kamış Olta', price: 0, desc: 'Yavaş iner, yavaş çeker', drop: 190, reel: 1, hookCapacity: 1 },
-  bambu: { id: 'bambu', name: 'Bambu Olta', price: 400, desc: 'Biraz daha hızlı iner ve çeker', drop: 230, reel: 1.15, hookCapacity: 1 },
-  karbon: { id: 'karbon', name: 'Karbon Olta', price: 1400, desc: 'Hafif ve hızlı çekiş; 2 iğne taşır', drop: 280, reel: 1.35, hookCapacity: 2 },
-  makarali: { id: 'makarali', name: 'Makaralı Olta', price: 4500, desc: 'Büyük balığı çabuk çeker; 2 iğne taşır', drop: 340, reel: 1.6, hookCapacity: 2 },
+  kamis: { id: 'kamis', name: 'Kamış Olta', icon: '🎣', price: 0, desc: 'Yavaş iner, yavaş çeker', drop: 190, reel: 1, hookCapacity: 1 },
+  bambu: { id: 'bambu', name: 'Bambu Olta', icon: '🪵', price: 400, desc: 'Biraz daha hızlı iner ve çeker', drop: 230, reel: 1.15, hookCapacity: 1 },
+  karbon: { id: 'karbon', name: 'Karbon Olta', icon: '⚙️', price: 1400, desc: 'Hafif ve hızlı çekiş; 2 iğne taşır', drop: 280, reel: 1.35, hookCapacity: 2 },
+  makarali: { id: 'makarali', name: 'Makaralı Olta', icon: '🌀', price: 4500, desc: 'Büyük balığı çabuk çeker; 2 iğne taşır', drop: 340, reel: 1.6, hookCapacity: 2 },
   derin: {
     id: 'derin',
     name: 'Derin Deniz Oltası',
+    icon: '🔱',
     price: 14000,
     desc: 'En güçlü çekiş; 3 iğne taşır; en dayanıklı misinayla köpekbalığı tutulur',
     drop: 400,
@@ -80,31 +85,31 @@ export const RODS: Record<RodId, Rod> = {
 export const ROD_ORDER: RodId[] = ['kamis', 'bambu', 'karbon', 'makarali', 'derin'];
 
 export const LINES: Record<LineId, Line> = {
-  ince: { id: 'ince', name: 'İnce Misina', price: 0, desc: 'Sığ sularda tutar', depth: 12, durability: 0 },
-  orta: { id: 'orta', name: 'Orta Misina', price: 400, desc: 'Biraz daha derine iner, biraz daha dayanıklı', depth: 20, durability: 1 },
-  kalin: { id: 'kalin', name: 'Kalın Misina', price: 1400, desc: 'Orta sulara iner', depth: 38, durability: 2 },
-  celik: { id: 'celik', name: 'Çelik Misina', price: 4500, desc: 'Büyük balığa dayanır', depth: 70, durability: 3 },
-  balina: { id: 'balina', name: 'Balina Misinası', price: 14000, desc: 'Marmara dibine kadar iner; en güçlü oltayla köpekbalığına dayanır', depth: 110, durability: 4, sharkReady: true },
+  ince: { id: 'ince', name: 'İnce Misina', icon: '🧵', price: 0, desc: 'Sığ sularda tutar', depth: 12, durability: 0 },
+  orta: { id: 'orta', name: 'Orta Misina', icon: '🧶', price: 400, desc: 'Biraz daha derine iner, biraz daha dayanıklı', depth: 20, durability: 1 },
+  kalin: { id: 'kalin', name: 'Kalın Misina', icon: '🪢', price: 1400, desc: 'Orta sulara iner', depth: 38, durability: 2 },
+  celik: { id: 'celik', name: 'Çelik Misina', icon: '⛓️', price: 4500, desc: 'Büyük balığa dayanır', depth: 70, durability: 3 },
+  balina: { id: 'balina', name: 'Balina Misinası', icon: '🐋', price: 14000, desc: 'Marmara dibine kadar iner; en güçlü oltayla köpekbalığına dayanır', depth: 110, durability: 4, sharkReady: true },
 };
 
 export const LINE_ORDER: LineId[] = ['ince', 'orta', 'kalin', 'celik', 'balina'];
 
 // maxPrice yalnızca nadir/pahalı türleri kısıtlar (bkz. species.ts); yaygın türler her iğneyle ısırır.
 export const HOOKS: Record<HookId, Hook> = {
-  adi: { id: 'adi', name: 'Adi İğne', price: 0, desc: 'Yaygın türler ısırır; altın balık ve üstü ısırmaz', maxPrice: 22 },
-  sert: { id: 'sert', name: 'Sert İğne', price: 4000, desc: 'Altın balık ve kalkan da ısırır', maxPrice: 38 },
-  ozel: { id: 'ozel', name: 'Özel İğne', price: 14000, desc: 'Kılıç balığı da ısırır', maxPrice: 65 },
-  usta: { id: 'usta', name: 'Usta İğnesi', price: 38000, desc: 'Fener balığı dahil her balık ısırır', maxPrice: 110 },
+  adi: { id: 'adi', name: 'Adi İğne', icon: '🪝', price: 0, desc: 'Yaygın türler ısırır; altın balık ve üstü ısırmaz', maxPrice: 22 },
+  sert: { id: 'sert', name: 'Sert İğne', icon: '🔩', price: 4000, desc: 'Altın balık ve kalkan da ısırır', maxPrice: 38 },
+  ozel: { id: 'ozel', name: 'Özel İğne', icon: '✨', price: 14000, desc: 'Kılıç balığı da ısırır', maxPrice: 65 },
+  usta: { id: 'usta', name: 'Usta İğnesi', icon: '👑', price: 38000, desc: 'Fener balığı dahil her balık ısırır', maxPrice: 110 },
 };
 
 export const HOOK_ORDER: HookId[] = ['adi', 'sert', 'ozel', 'usta'];
 
 export const BOATS: Record<BoatId, Boat> = {
-  sandal: { id: 'sandal', name: 'Sandal', price: 0, desc: 'Küçük kova', capacity: 10 },
-  kayik: { id: 'kayik', name: 'Kayık', price: 1000, desc: 'Biraz daha büyük kova', capacity: 16 },
-  motor: { id: 'motor', name: 'Motorbot', price: 4000, desc: 'Ferah bir kova', capacity: 24 },
-  yat: { id: 'yat', name: 'Yat', price: 13000, desc: 'Büyük kova', capacity: 34 },
-  gemi: { id: 'gemi', name: 'Balıkçı Gemisi', price: 35000, desc: 'Devasa kova', capacity: 50 },
+  sandal: { id: 'sandal', name: 'Sandal', icon: '🛶', price: 0, desc: 'Küçük kova', capacity: 10 },
+  kayik: { id: 'kayik', name: 'Kayık', icon: '🚣', price: 1000, desc: 'Biraz daha büyük kova', capacity: 16 },
+  motor: { id: 'motor', name: 'Motorbot', icon: '🚤', price: 4000, desc: 'Ferah bir kova', capacity: 24 },
+  yat: { id: 'yat', name: 'Yat', icon: '🛥️', price: 13000, desc: 'Büyük kova', capacity: 34 },
+  gemi: { id: 'gemi', name: 'Balıkçı Gemisi', icon: '🚢', price: 35000, desc: 'Devasa kova', capacity: 50 },
 };
 
 export const BOAT_ORDER: BoatId[] = ['sandal', 'kayik', 'motor', 'yat', 'gemi'];
