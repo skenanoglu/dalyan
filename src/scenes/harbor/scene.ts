@@ -59,6 +59,8 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
   let authBusy = false;
   let authError: string | null = null;
   let rodInfoOpen = false;
+  /** Bir sonraki çizimden sonra kaydırılacak Donanım bölümü (data-anchor). */
+  let scrollAnchor: string | null = null;
 
   const render = (): void => {
     const p = app.profile;
@@ -84,6 +86,14 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
         <div class="tab-body">${tab === 'oyna' ? playView(p, zone, input.weather) : tab === 'donanim' ? donanimView(p, rodInfoOpen) : tab === 'dukkan' ? shopView(p) : logView(p)}</div>
       </div>`;
     root.scrollTop = scroll;
+    if (scrollAnchor) {
+      const target = root.querySelector<HTMLElement>(`[data-anchor="${scrollAnchor}"]`);
+      scrollAnchor = null;
+      if (target) {
+        const top = root.scrollTop + target.getBoundingClientRect().top - root.getBoundingClientRect().top - 12;
+        root.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      }
+    }
   };
 
   const commit = (next: Profile | null): boolean => {
@@ -176,6 +186,11 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
       case 'tab':
         tab = arg as Tab;
         root.scrollTop = 0;
+        break;
+      case 'goto-gear':
+        // Donanım'a geçer ve seçili av şekline uygun bölüme (olta ya da zıpkın) kaydırır.
+        tab = 'donanim';
+        scrollAnchor = effectiveMode(p) === 'zipkin' ? 'zipkin' : 'olta';
         break;
       case 'zone':
         zone = arg as ZoneId;
@@ -443,6 +458,11 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
 
   return `
     <section class="mode mode-olta">
+      <button class="gear-shortcut" data-act="goto-gear">
+        <span class="gear-shortcut-icon">⚙️</span>
+        <span class="gear-shortcut-body"><b>Donanım</b><small>${mode === 'zipkin' ? `${harpoon.name} · ${tank.name}` : `${rod.name} · ${line.name}`}</small></span>
+        <span class="gear-shortcut-go">›</span>
+      </button>
       <div class="mode-head">
         <span class="mode-icon">🎣</span>
         <div><h3>Olta</h3><p>Tekneyle açıl. Küçük balıklar sığda, büyükler derinde.</p></div>
@@ -459,7 +479,7 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
       <div class="row-label">Süre</div>
       <div class="chips">${durations}</div>
       <p class="forecast ${weather.id}">${weather.icon} Hava: <b>${weather.name}</b>. ${weather.desc}${p.night ? `<br>${NIGHT.icon} ${NIGHT.desc}` : ''}</p>
-      <div class="gear-summary">${badges}<button class="link-btn" data-act="tab" data-arg="donanim">Donanımı düzenle</button></div>
+      <div class="gear-summary">${badges}<button class="link-btn" data-act="goto-gear">Donanımı düzenle</button></div>
       <button class="btn primary" data-act="play">Oltayı At</button>
     </section>`;
 }
@@ -513,8 +533,7 @@ function donanimView(p: Profile, rodInfoOpen: boolean): string {
     .map((id) => `<div class="bait-chip" data-drag-bait="${id}">${BAITS[id].icon} ${BAITS[id].name}</div>`)
     .join('');
   return `
-    ${modeRow(p)}
-    <div class="row-label row-label-info">
+    <div class="row-label row-label-info" data-anchor="olta">
       Olta
       <button class="icon-btn tiny" data-act="rod-info" aria-label="Olta özellikleri">ℹ️</button>
     </div>
@@ -526,7 +545,7 @@ function donanimView(p: Profile, rodInfoOpen: boolean): string {
     <div class="gear-grid">${hookTiers}</div>
     <div class="row-label">Tekne</div>
     <div class="gear-grid">${boats}</div>
-    <div class="row-label">Zıpkın</div>
+    <div class="row-label" data-anchor="zipkin">Zıpkın</div>
     ${harpoons ? `<div class="gear-grid">${harpoons}</div>` : '<p class="rig-note">Dükkândan zıpkın al.</p>'}
     <div class="row-label">Dalış tüpü</div>
     ${tanks ? `<div class="gear-grid">${tanks}</div>` : '<p class="rig-note">Dükkândan zıpkın ve tüp al; sonra Oyna sekmesinden zıpkınla dalabilirsin.</p>'}

@@ -309,6 +309,32 @@ button:disabled { cursor: default; opacity: 0.45; }
 .quest.done { opacity: 0.6; }
 .quest.done .quest-reward { color: var(--dim); }
 
+.gear-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(31, 181, 232, 0.4);
+  background: rgba(31, 181, 232, 0.12);
+  text-align: left;
+}
+.gear-shortcut-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 17px;
+}
+.gear-shortcut-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.gear-shortcut-body b { font-size: 14px; }
+.gear-shortcut-body small { font-size: 11px; color: var(--dim); }
+.gear-shortcut-go { flex: none; font-size: 22px; color: var(--sea); }
+
 .gear-summary {
   display: flex;
   align-items: center;
