@@ -1,4 +1,4 @@
-import type { BoatId, Catch, SpeciesId, WeatherId, ZoneId } from '../../app/types';
+import type { BaitId, BoatId, Catch, SpeciesId, WeatherId, ZoneId } from '../../app/types';
 import { NIGHT, WEATHER, type WeatherDef } from '../../app/weather';
 import { BAIT_PULL } from '../../app/gear';
 import { ZONES } from '../../app/zones';
@@ -32,6 +32,8 @@ export interface HookPoint {
   y: number;
   fish: Fish | null;
   stun: number;
+  /** Bu iğneye takılı yem; iğne ucunda yeme özgü görünümle çizilir (bkz. draw.ts). */
+  baitId: BaitId;
 }
 
 export interface Fish {
@@ -72,6 +74,8 @@ export interface WorldOptions {
   duration: number;
   /** Takılı yemin sevdiği türler daha sık görünür. */
   baitLikes: SpeciesId[];
+  /** Her iğneye takılı yem (iğne ucunda görünür); hookCount kadar, yoksa ekmek. */
+  baitSlots?: BaitId[];
   /** İğnenin ısırabileceği en pahalı tür fiyatı; üstü ısırmaz (tehlikeler hariç). */
   hookMaxPrice?: number;
   /** Misinanın 0-4 dayanıklılığı; misina kopma cezasını azaltır. */
@@ -175,7 +179,8 @@ export class FishingWorld {
     this.night = o.night ?? false;
     const hookCount = Math.max(1, Math.min(3, Math.round(o.hookCount ?? 1)));
     const tipX = this.rodTip().x;
-    this.hooks = Array.from({ length: hookCount }, () => ({ x: tipX, y: HOOK_TOP, fish: null, stun: 0 }));
+    const baitSlots = o.baitSlots ?? [];
+    this.hooks = Array.from({ length: hookCount }, (_, i) => ({ x: tipX, y: HOOK_TOP, fish: null, stun: 0, baitId: baitSlots[i] ?? 'ekmek' }));
     this.scatterDecor();
   }
 

@@ -183,6 +183,11 @@ describe('av dünyası', () => {
     expect(w.hooks[2].y - w.hooks[0].y).toBeCloseTo(HOOK_GAP * 2, 0);
   });
 
+  it('her iğne kendi takılı yemini taşır; verilmezse ekmek varsayılır', () => {
+    const w = make({ hookCount: 3, baitSlots: ['solucan', 'kalamar'] });
+    expect(w.hooks.map((h) => h.baitId)).toEqual(['solucan', 'kalamar', 'ekmek']);
+  });
+
   it('iki iğneli oltada iki balık aynı anda takılıp kovaya girer', () => {
     const w = empty({ hookCount: 2 });
     run(w, 0.6, down);

@@ -76,6 +76,7 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
     hookCount: input.baitSlots.length,
     duration: input.duration ?? 90,
     baitLikes: unionBaitLikes(input.baitSlots),
+    baitSlots: input.baitSlots,
     hookMaxPrice: hook.maxPrice,
     lineDurability: line.durability,
     sharkReady: Boolean(rod.sharkReady && line.sharkReady),

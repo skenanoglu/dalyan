@@ -568,22 +568,94 @@ export class FishingRenderer {
     g.lineTo(hook.x - 7, hook.y - 1);
     g.stroke();
 
-    if (!hook.fish) {
-      g.strokeStyle = '#ff8fa3';
-      g.lineWidth = 3;
-      g.lineCap = 'round';
-      g.beginPath();
-      g.moveTo(hook.x - 8, hook.y + 2);
-      g.quadraticCurveTo(hook.x - 10 + Math.sin(w.T * 6) * 2, hook.y + 9, hook.x - 4, hook.y + 8);
-      g.stroke();
-      g.lineCap = 'butt';
-    }
+    if (!hook.fish) this.baitOnHook(g, hook, w.T);
 
     if (hook.stun > 0) {
       for (let i = 0; i < 3; i++) {
         const a = w.T * 6 + (i * TAU) / 3;
         drawStar(g, hook.x + Math.cos(a) * 14, hook.y - 4 + Math.sin(a) * 6, 5, 2, 5, '#ffe66d');
       }
+    }
+  }
+
+  /** Boş iğnenin ucundaki yem, takılı yem türüne göre farklı çizilir. */
+  private baitOnHook(g: Ctx, hook: HookPoint, t: number): void {
+    const x = hook.x;
+    const y = hook.y;
+    switch (hook.baitId) {
+      case 'solucan':
+        g.strokeStyle = '#ff8fa3';
+        g.lineWidth = 3;
+        g.lineCap = 'round';
+        g.beginPath();
+        g.moveTo(x - 8, y + 2);
+        g.quadraticCurveTo(x - 10 + Math.sin(t * 6) * 2, y + 9, x - 4, y + 8);
+        g.stroke();
+        g.lineCap = 'butt';
+        break;
+      case 'karides':
+        g.strokeStyle = '#ff9a6b';
+        g.lineWidth = 2.6;
+        g.lineCap = 'round';
+        g.beginPath();
+        g.moveTo(x - 2, y + 1);
+        g.quadraticCurveTo(x - 11, y + 4, x - 7, y + 12);
+        g.stroke();
+        g.lineCap = 'butt';
+        g.fillStyle = '#ff9a6b';
+        circle(g, x - 2, y + 1, 1.8);
+        g.strokeStyle = '#e06b3f';
+        g.lineWidth = 1;
+        g.beginPath();
+        g.moveTo(x - 1, y);
+        g.lineTo(x + 3, y - 3);
+        g.stroke();
+        break;
+      case 'sardalya':
+        g.save();
+        g.translate(x - 6, y + 6);
+        g.rotate(0.6 + Math.sin(t * 4) * 0.08);
+        g.fillStyle = '#c7d6e0';
+        g.beginPath();
+        g.ellipse(0, 0, 6, 2.4, 0, 0, TAU);
+        g.fill();
+        g.fillStyle = '#90a4ae';
+        g.beginPath();
+        g.moveTo(-5, 0);
+        g.lineTo(-9, -2.5);
+        g.lineTo(-9, 2.5);
+        g.closePath();
+        g.fill();
+        g.fillStyle = '#263238';
+        circle(g, 4, -0.5, 0.8);
+        g.restore();
+        break;
+      case 'kalamar':
+        g.fillStyle = '#d896e0';
+        g.beginPath();
+        g.ellipse(x - 5, y + 5, 3.4, 5, 0, 0, TAU);
+        g.fill();
+        g.strokeStyle = '#d896e0';
+        g.lineWidth = 1.3;
+        g.lineCap = 'round';
+        for (let i = 0; i < 3; i++) {
+          const k = Math.sin(t * 5 + i) * 1.5;
+          g.beginPath();
+          g.moveTo(x - 7 + i * 2, y + 9.5);
+          g.lineTo(x - 7 + i * 2 + k, y + 14);
+          g.stroke();
+        }
+        g.lineCap = 'butt';
+        break;
+      default: // ekmek
+        g.fillStyle = '#e8c27a';
+        g.beginPath();
+        g.ellipse(x - 6, y + 6, 4.6, 3.3, 0.3, 0, TAU);
+        g.fill();
+        g.fillStyle = '#c9a15c';
+        circle(g, x - 7.5, y + 5.5, 1);
+        circle(g, x - 5, y + 7.5, 0.8);
+        break;
     }
   }
 
