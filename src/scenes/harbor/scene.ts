@@ -72,7 +72,7 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
         <nav class="tabs">
           ${TABS.map(([id, label]) => `<button class="tab ${tab === id ? 'on' : ''}" data-act="tab" data-arg="${id}">${label}</button>`).join('')}
         </nav>
-        <div class="tab-body">${tab === 'oyna' ? playView(p, zone, input.weather, rodInfoOpen) : tab === 'donanim' ? donanimView(p) : tab === 'dukkan' ? shopView(p) : logView(p)}</div>
+        <div class="tab-body">${tab === 'oyna' ? playView(p, zone, input.weather) : tab === 'donanim' ? donanimView(p, rodInfoOpen) : tab === 'dukkan' ? shopView(p) : logView(p)}</div>
       </div>`;
     root.scrollTop = scroll;
   };
@@ -308,23 +308,13 @@ function rodInfoView(p: Profile): string {
   return `<ul class="rod-info">${rows}</ul>`;
 }
 
-function playView(p: Profile, zone: ZoneId, weatherId: WeatherId, rodInfoOpen: boolean): string {
+function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
   const weather = WEATHER[weatherId];
   const z = ZONES[zone];
   const line = LINES[p.line];
+  const rod = RODS[p.rod];
+  const hook = HOOKS[p.hook];
   const boat = BOATS[p.boat];
-  const rods = ROD_ORDER.filter((id) => p.rods[id])
-    .map((id) => `<button class="chip ${id === p.rod ? 'on' : ''}" data-act="use-rod" data-arg="${id}">${RODS[id].name}</button>`)
-    .join('');
-  const lines = LINE_ORDER.filter((id) => p.lines[id])
-    .map((id) => `<button class="chip ${id === p.line ? 'on' : ''}" data-act="use-line" data-arg="${id}">${LINES[id].name}</button>`)
-    .join('');
-  const hooks = HOOK_ORDER.filter((id) => p.hooks[id])
-    .map((id) => `<button class="chip ${id === p.hook ? 'on' : ''}" data-act="use-hook" data-arg="${id}">${HOOKS[id].name}</button>`)
-    .join('');
-  const boats = BOAT_ORDER.filter((id) => p.boats[id])
-    .map((id) => `<button class="chip ${id === p.boat ? 'on' : ''}" data-act="use-boat" data-arg="${id}">${BOATS[id].name}</button>`)
-    .join('');
   const durations = FISH_SECONDS_OPTIONS.map(
     (s) => `<button class="chip ${s === p.fishSeconds ? 'on' : ''}" data-act="duration" data-arg="${s}">${s} sn</button>`,
   ).join('');
@@ -339,18 +329,6 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId, rodInfoOpen: b
       </div>
       <div class="row-label">Bölge</div>
       <div class="chips wrap">${zoneChips(p, zone)}</div>
-      <div class="row-label row-label-info">
-        Olta
-        <button class="icon-btn tiny" data-act="rod-info" aria-label="Olta özellikleri">ℹ️</button>
-      </div>
-      ${rodInfoOpen ? rodInfoView(p) : ''}
-      <div class="chips wrap">${rods}</div>
-      <div class="row-label">Misina</div>
-      <div class="chips wrap">${lines}</div>
-      <div class="row-label">İğne</div>
-      <div class="chips wrap">${hooks}</div>
-      <div class="row-label">Tekne</div>
-      <div class="chips wrap">${boats}</div>
       <div class="row-label">Zaman</div>
       <div class="chips">
         <button class="chip ${p.night ? '' : 'on'}" data-act="night" data-arg="0">☀️ Gündüz</button>
@@ -359,14 +337,26 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId, rodInfoOpen: b
       <div class="row-label">Süre</div>
       <div class="chips">${durations}</div>
       <p class="forecast ${weather.id}">${weather.icon} Hava: <b>${weather.name}</b>. ${weather.desc}${p.night ? `<br>${NIGHT.icon} ${NIGHT.desc}` : ''}</p>
-      <p class="mode-meta">${reach} m'ye kadar inersin${depthNote}. Takılı yemler: ${p.baitSlots.map((id) => `${BAITS[id].icon} ${BAITS[id].name}`).join(', ')} <button class="link-btn" data-act="tab" data-arg="donanim">(Donanımı düzenle)</button>. Kova: en fazla ${boat.capacity} balık.</p>
+      <p class="mode-meta">${rod.name} · ${line.name} (${reach} m'ye kadar${depthNote}) · ${hook.name} · ${boat.name} (kova ${boat.capacity}) <button class="link-btn" data-act="tab" data-arg="donanim">(Donanımı düzenle)</button></p>
       <button class="btn primary" data-act="play">Oltayı At</button>
     </section>`;
 }
 
-function donanimView(p: Profile): string {
+function donanimView(p: Profile, rodInfoOpen: boolean): string {
   const rod = RODS[p.rod];
   const cap = rodHookCapacity(p);
+  const rods = ROD_ORDER.filter((id) => p.rods[id])
+    .map((id) => `<button class="chip ${id === p.rod ? 'on' : ''}" data-act="use-rod" data-arg="${id}">${RODS[id].name}</button>`)
+    .join('');
+  const lines = LINE_ORDER.filter((id) => p.lines[id])
+    .map((id) => `<button class="chip ${id === p.line ? 'on' : ''}" data-act="use-line" data-arg="${id}">${LINES[id].name}</button>`)
+    .join('');
+  const hookTiers = HOOK_ORDER.filter((id) => p.hooks[id])
+    .map((id) => `<button class="chip ${id === p.hook ? 'on' : ''}" data-act="use-hook" data-arg="${id}">${HOOKS[id].name}</button>`)
+    .join('');
+  const boats = BOAT_ORDER.filter((id) => p.boats[id])
+    .map((id) => `<button class="chip ${id === p.boat ? 'on' : ''}" data-act="use-boat" data-arg="${id}">${BOATS[id].name}</button>`)
+    .join('');
   const slots = p.baitSlots
     .map((id, i) => {
       const rodLocked = i >= cap;
@@ -395,6 +385,18 @@ function donanimView(p: Profile): string {
     .map((id) => `<div class="bait-chip" data-drag-bait="${id}">${BAITS[id].icon} ${BAITS[id].name}</div>`)
     .join('');
   return `
+    <div class="row-label row-label-info">
+      Olta
+      <button class="icon-btn tiny" data-act="rod-info" aria-label="Olta özellikleri">ℹ️</button>
+    </div>
+    ${rodInfoOpen ? rodInfoView(p) : ''}
+    <div class="chips wrap">${rods}</div>
+    <div class="row-label">Misina</div>
+    <div class="chips wrap">${lines}</div>
+    <div class="row-label">İğne</div>
+    <div class="chips wrap">${hookTiers}</div>
+    <div class="row-label">Tekne</div>
+    <div class="chips wrap">${boats}</div>
     <p class="rig-note">Bir yemi sürükleyip bir iğneye bırak; her iğne kendi yemiyle balık çeker. ${rod.name}: en fazla ${cap} iğne taşır.</p>
     <div class="rig-hooks">${slots}${addSlot}</div>
     <div class="row-label">Yemlerin</div>
