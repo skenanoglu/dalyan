@@ -4,6 +4,7 @@ import { SPECIES, SPECIES_ORDER } from './species';
 import { ZONES, ZONE_ORDER } from './zones';
 import { BAITS, BAIT_ORDER, BOATS, BOAT_ORDER, HOOKS, HOOK_ORDER, HOOK_SLOT_PRICE, LINES, LINE_ORDER, MAX_HOOK_SLOTS, RODS, ROD_ORDER } from './gear';
 import { catchCount } from './catch';
+import { checkAchievements } from './achievements';
 
 /** Bir kademe (olta/misina/iğne/tekne/yem) yalnızca bir öncekine sahipsen alınabilir; en ucuz kademe her zaman serbesttir. */
 function prevTierOwned<T extends string>(owned: Record<T, boolean>, order: readonly T[], id: T): boolean {
@@ -207,13 +208,16 @@ export function applyTrip(p: Profile, t: TripInput): { profile: Profile; summary
     next.stats.totalFish += n;
   }
 
+  const { profile, unlocked } = checkAchievements(next);
+
   return {
-    profile: next,
+    profile,
     summary: {
       zone: t.zone,
       earned,
       fish: catchCount(t.catch),
       newSpecies,
+      newAchievements: unlocked.map((a) => a.id),
     },
   };
 }

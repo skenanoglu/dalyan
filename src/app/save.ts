@@ -2,6 +2,7 @@ import type { BaitId, BoatId, HookId, LineId, RodId, SpeciesId, ZoneId } from '.
 import { ZONE_ORDER, isZoneId } from './zones';
 import { SPECIES_ORDER } from './species';
 import { BAIT_ORDER, BOAT_ORDER, HOOK_ORDER, LINE_ORDER, MAX_HOOK_SLOTS, ROD_ORDER, isBaitId, isBoatId, isHookId, isLineId, isRodId } from './gear';
+import { ACHIEVEMENT_ORDER, type AchievementId } from './achievements';
 
 export const SAVE_KEY = 'dalyan.profil';
 export const SAVE_VERSION = 5;
@@ -44,6 +45,7 @@ export interface Profile {
   logbook: Partial<Record<SpeciesId, LogEntry>>;
   settings: Settings;
   stats: { trips: number; totalMoney: number; totalFish: number };
+  achievements: Partial<Record<AchievementId, { unlockedAt: number }>>;
 }
 
 const flags = <K extends string>(all: K[], on: K[]): Record<K, boolean> =>
@@ -71,6 +73,7 @@ export function defaultProfile(): Profile {
     logbook: {},
     settings: { sound: true, haptics: true },
     stats: { trips: 0, totalMoney: 0, totalFish: 0 },
+    achievements: {},
   };
 }
 
@@ -142,6 +145,13 @@ export function parseProfile(raw: string | null): Profile {
     p.stats.trips = int(data.stats.trips) ?? 0;
     p.stats.totalMoney = int(data.stats.totalMoney) ?? 0;
     p.stats.totalFish = int(data.stats.totalFish) ?? 0;
+  }
+  if (isObj(data.achievements)) {
+    for (const id of ACHIEVEMENT_ORDER) {
+      const entry = data.achievements[id];
+      const unlockedAt = isObj(entry) ? int(entry.unlockedAt) : null;
+      if (unlockedAt) p.achievements[id] = { unlockedAt };
+    }
   }
   return p;
 }

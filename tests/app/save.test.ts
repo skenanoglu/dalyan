@@ -62,6 +62,14 @@ describe('kayıt', () => {
     p.settings.sound = false;
     p.night = true;
     p.stats = { trips: 4, totalMoney: 900, totalFish: 41 };
+    p.achievements = { 'ilk-av': { unlockedAt: 1700000000000 } };
     expect(parseProfile(JSON.stringify(p))).toEqual(p);
+  });
+
+  it('geçersiz başarım kimlikleri ve bozuk tarihler atılır', () => {
+    const p = parseProfile(
+      JSON.stringify({ achievements: { 'ilk-av': { unlockedAt: 123 }, uydurma: { unlockedAt: 999 }, zengin: { unlockedAt: 'x' } } }),
+    );
+    expect(p.achievements).toEqual({ 'ilk-av': { unlockedAt: 123 } });
   });
 });

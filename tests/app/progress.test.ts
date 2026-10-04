@@ -180,7 +180,8 @@ describe('sefer uygulama', () => {
     expect(profile.lastZone).toBe('kiyi');
     expect(profile.logbook).toEqual({ hamsi: { count: 6 }, lufer: { count: 1 } });
     expect(profile.stats).toEqual({ trips: 1, totalMoney: market.earned, totalFish: 5 });
-    expect(summary).toEqual({ zone: 'kiyi', earned: market.earned, fish: 5, newSpecies: ['lufer'] });
+    expect(summary).toEqual({ zone: 'kiyi', earned: market.earned, fish: 5, newSpecies: ['lufer'], newAchievements: ['ilk-av'] });
+    expect(profile.achievements['ilk-av']).toBeDefined();
   });
 });
 

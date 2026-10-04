@@ -1,3 +1,5 @@
+import type { AchievementId } from './achievements';
+
 export type ZoneId = 'kiyi' | 'bogaz' | 'cukur' | 'marmara';
 
 export type SpeciesId =
@@ -96,4 +98,6 @@ export interface TripSummary {
   earned: number;
   fish: number;
   newSpecies: SpeciesId[];
+  /** Bu seferin sonunda açılan başarımlar (bkz. app/achievements.ts). */
+  newAchievements: AchievementId[];
 }

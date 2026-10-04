@@ -7,6 +7,7 @@ import { ZONES, ZONE_ORDER } from '../../app/zones';
 import { SPECIES, SPECIES_ORDER } from '../../app/species';
 import { BAITS, BAIT_ORDER, BOATS, BOAT_ORDER, HOOKS, HOOK_ORDER, LINES, LINE_ORDER, RODS, ROD_ORDER } from '../../app/gear';
 import { NIGHT, WEATHER } from '../../app/weather';
+import { ACHIEVEMENTS, ACHIEVEMENT_ORDER } from '../../app/achievements';
 import {
   buyBait,
   buyBoat,
@@ -278,11 +279,16 @@ function authFormView(state: AuthState): string {
 
 function bannerView(t: TripSummary): string {
   const fresh = t.newSpecies.length > 0 ? ` · Yeni tür: ${t.newSpecies.map((id) => SPECIES[id].name).join(', ')}` : '';
+  const badges = t.newAchievements
+    .map((id) => ACHIEVEMENTS[id])
+    .map((a) => `<span class="gear-badge"><span class="emoji">${a.icon}</span>${a.name}</span>`)
+    .join('');
   return `
     <div class="banner">
       <div>
         <b>🎣 +${money(t.earned)}</b>
         <small>${ZONES[t.zone].name} · ${t.fish} balık${fresh}</small>
+        ${badges ? `<div class="gear-summary banner-achievements"><small class="ach-label">🏆 Yeni başarım</small>${badges}</div>` : ''}
       </div>
       <button class="icon-btn" data-act="close-banner" aria-label="Kapat">✕</button>
     </div>`;
@@ -505,7 +511,21 @@ function logView(p: Profile): string {
         : `<li class="unknown"><i></i><span>???</span><b>—</b></li>`;
     })
     .join('');
+  const unlockedCount = ACHIEVEMENT_ORDER.filter((id) => p.achievements[id]).length;
+  const badges = ACHIEVEMENT_ORDER.map((id) => {
+    const a = ACHIEVEMENTS[id];
+    const unlocked = Boolean(p.achievements[id]);
+    return `
+      <div class="badge ${unlocked ? 'unlocked' : 'locked'}">
+        <span class="badge-icon">${unlocked ? a.icon : '🔒'}</span>
+        <b>${a.name}</b>
+        <small>${a.desc}</small>
+      </div>`;
+  }).join('');
   return `
-    <p class="log-head">${found}/${fish.length} tür · ${p.stats.trips} av · ${p.stats.totalFish} balık</p>
+    <h4><span class="h4-icon">🏆</span>Başarımlar<small class="h4-count">${unlockedCount}/${ACHIEVEMENT_ORDER.length}</small></h4>
+    <div class="badge-grid">${badges}</div>
+    <h4><span class="h4-icon">📖</span>Defter<small class="h4-count">${found}/${fish.length}</small></h4>
+    <p class="log-head">${p.stats.trips} av · ${p.stats.totalFish} balık</p>
     <ul class="logbook">${items}</ul>`;
 }
