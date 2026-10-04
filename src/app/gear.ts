@@ -89,10 +89,11 @@ export const LINES: Record<LineId, Line> = {
 
 export const LINE_ORDER: LineId[] = ['ince', 'orta', 'kalin', 'celik', 'balina'];
 
+// maxPrice yalnızca nadir/pahalı türleri kısıtlar (bkz. species.ts); yaygın türler her iğneyle ısırır.
 export const HOOKS: Record<HookId, Hook> = {
-  adi: { id: 'adi', name: 'Adi İğne', price: 0, desc: 'Sadece küçük balıklar ısırır', maxPrice: 8 },
-  sert: { id: 'sert', name: 'Sert İğne', price: 4000, desc: 'Orta boy balıklar da ısırır', maxPrice: 22 },
-  ozel: { id: 'ozel', name: 'Özel İğne', price: 14000, desc: 'Altın balık ve kalkan da ısırır', maxPrice: 65 },
+  adi: { id: 'adi', name: 'Adi İğne', price: 0, desc: 'Yaygın türler ısırır; altın balık ve üstü ısırmaz', maxPrice: 22 },
+  sert: { id: 'sert', name: 'Sert İğne', price: 4000, desc: 'Altın balık ve kalkan da ısırır', maxPrice: 38 },
+  ozel: { id: 'ozel', name: 'Özel İğne', price: 14000, desc: 'Kılıç balığı da ısırır', maxPrice: 65 },
   usta: { id: 'usta', name: 'Usta İğnesi', price: 38000, desc: 'Fener balığı dahil her balık ısırır', maxPrice: 110 },
 };
 
