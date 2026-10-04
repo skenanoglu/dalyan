@@ -61,6 +61,8 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
   let rodInfoOpen = false;
   /** Bir sonraki çizimden sonra kaydırılacak Donanım bölümü (data-anchor). */
   let scrollAnchor: string | null = null;
+  /** Donanım alt sekmesi; seçili av şekline göre açılır, elle de değiştirilebilir. */
+  let gearTab: FishMode = effectiveMode(app.profile);
 
   const render = (): void => {
     const p = app.profile;
@@ -83,7 +85,7 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
         <nav class="tabs">
           ${TABS.map(([id, label]) => `<button class="tab ${tab === id ? 'on' : ''}" data-act="tab" data-arg="${id}">${label}</button>`).join('')}
         </nav>
-        <div class="tab-body">${tab === 'oyna' ? playView(p, zone, input.weather) : tab === 'donanim' ? donanimView(p, rodInfoOpen) : tab === 'dukkan' ? shopView(p) : logView(p)}</div>
+        <div class="tab-body">${tab === 'oyna' ? playView(p, zone, input.weather) : tab === 'donanim' ? donanimView(p, rodInfoOpen, gearTab) : tab === 'dukkan' ? shopView(p) : logView(p)}</div>
       </div>`;
     root.scrollTop = scroll;
     if (scrollAnchor) {
@@ -190,7 +192,11 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
       case 'goto-gear':
         // Donanım'a geçer ve seçili av şekline uygun bölüme (olta ya da zıpkın) kaydırır.
         tab = 'donanim';
-        scrollAnchor = effectiveMode(p) === 'zipkin' ? 'zipkin' : 'olta';
+        gearTab = effectiveMode(p);
+        scrollAnchor = 'gear-tabs';
+        break;
+      case 'gear-tab':
+        gearTab = arg === 'zipkin' ? 'zipkin' : 'olta';
         break;
       case 'zone':
         zone = arg as ZoneId;
@@ -214,7 +220,10 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
         if (p.tanks[arg as TankId]) commit({ ...p, tank: arg as TankId });
         break;
       case 'mode':
-        if (arg === 'olta' || canDive(p)) commit({ ...p, fishMode: arg as FishMode });
+        if (arg === 'olta' || canDive(p)) {
+          commit({ ...p, fishMode: arg as FishMode });
+          gearTab = arg as FishMode;
+        }
         break;
       case 'buy-harpoon':
         commit(buyHarpoon(p));
@@ -484,7 +493,7 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
     </section>`;
 }
 
-function donanimView(p: Profile, rodInfoOpen: boolean): string {
+function donanimView(p: Profile, rodInfoOpen: boolean, gearTab: FishMode): string {
   const rod = RODS[p.rod];
   const cap = rodHookCapacity(p);
   const rods = ROD_ORDER.filter((id) => p.rods[id])
@@ -532,8 +541,27 @@ function donanimView(p: Profile, rodInfoOpen: boolean): string {
   const tray = BAIT_ORDER.filter((id) => p.baits[id])
     .map((id) => `<div class="bait-chip" data-drag-bait="${id}">${BAITS[id].icon} ${BAITS[id].name}</div>`)
     .join('');
+  const subtabs = `
+    <nav class="tabs subtabs" data-anchor="gear-tabs">
+      <button class="tab ${gearTab === 'olta' ? 'on' : ''}" data-act="gear-tab" data-arg="olta">🎣 Olta</button>
+      <button class="tab ${gearTab === 'zipkin' ? 'on' : ''}" data-act="gear-tab" data-arg="zipkin">🤿 Zıpkın</button>
+    </nav>`;
+  const boatBlock = `
+    <div class="row-label">Tekne</div>
+    <div class="gear-grid">${boats}</div>`;
+
+  if (gearTab === 'zipkin') {
+    return `
+    ${subtabs}
+    <div class="row-label">Zıpkın</div>
+    ${harpoons ? `<div class="gear-grid">${harpoons}</div>` : '<p class="rig-note">Dükkândan zıpkın al.</p>'}
+    <div class="row-label">Dalış tüpü</div>
+    ${tanks ? `<div class="gear-grid">${tanks}</div>` : '<p class="rig-note">Dükkândan tüp al; sonra Oyna sekmesinden zıpkınla dalabilirsin.</p>'}
+    ${boatBlock}`;
+  }
   return `
-    <div class="row-label row-label-info" data-anchor="olta">
+    ${subtabs}
+    <div class="row-label row-label-info">
       Olta
       <button class="icon-btn tiny" data-act="rod-info" aria-label="Olta özellikleri">ℹ️</button>
     </div>
@@ -543,12 +571,7 @@ function donanimView(p: Profile, rodInfoOpen: boolean): string {
     <div class="gear-grid">${lines}</div>
     <div class="row-label">İğne</div>
     <div class="gear-grid">${hookTiers}</div>
-    <div class="row-label">Tekne</div>
-    <div class="gear-grid">${boats}</div>
-    <div class="row-label" data-anchor="zipkin">Zıpkın</div>
-    ${harpoons ? `<div class="gear-grid">${harpoons}</div>` : '<p class="rig-note">Dükkândan zıpkın al.</p>'}
-    <div class="row-label">Dalış tüpü</div>
-    ${tanks ? `<div class="gear-grid">${tanks}</div>` : '<p class="rig-note">Dükkândan zıpkın ve tüp al; sonra Oyna sekmesinden zıpkınla dalabilirsin.</p>'}
+    ${boatBlock}
     <p class="rig-note">Bir yemi sürükleyip bir iğneye bırak; her iğne kendi yemiyle balık çeker. ${rod.name}: en fazla ${cap} iğne taşır.</p>
     <div class="rig-hooks">${slots}${addSlot}</div>
     <div class="row-label">Yemlerin</div>
