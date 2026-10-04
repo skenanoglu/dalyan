@@ -5,6 +5,7 @@ import { TYPES } from '../../src/scenes/fishing/data';
 
 const idle: Input = { left: false, right: false, up: false, down: false };
 const down: Input = { ...idle, down: true };
+const up: Input = { ...idle, up: true };
 const STEP = 1 / 60;
 
 function make(extra: Partial<WorldOptions> = {}): FishingWorld {
@@ -82,7 +83,7 @@ describe('av dünyası', () => {
     expect(w.hook.fish?.t.key).toBe('lufer');
     run(w, 5);
     expect(w.catch).toEqual({ lufer: 1 });
-    expect(w.events).toEqual(expect.arrayContaining(['catch', 'score']));
+    expect(w.events).toEqual(expect.arrayContaining(['catch', 'rare']));
   });
 
   it('çöp de kovaya girer (pazarda ceza olur)', () => {
@@ -198,6 +199,28 @@ describe('av dünyası', () => {
     expect(w.hooks[1].fish?.t.key).toBe('hamsi');
     run(w, 5);
     expect(w.catch).toEqual({ lufer: 1, hamsi: 1 });
+  });
+
+  it('nadir balığı sürekli ↑ ile zorlamak gerginliği doldurur; tavana varınca balık kurtulur', () => {
+    const w = empty();
+    run(w, 3, down); // misina sınırına kadar indir: yüzeye çıkış, gerginlik dolmasından uzun sürsün
+    putAtHook(w, 'lufer');
+    w.update(STEP, idle);
+    expect(w.hook.fish?.t.key).toBe('lufer');
+    run(w, 3, up);
+    expect(w.events).toContain('escape');
+    expect(w.hook.fish).toBeNull();
+    expect(w.catch).toEqual({});
+  });
+
+  it('fırtınada nadir türler daha sık doğar', () => {
+    const share = (weather: WorldOptions['weather']): number => {
+      const w = make({ zone: 'bogaz', viewHeight: 5000, weather });
+      for (let i = 0; i < 3000; i++) w.spawnFish(true);
+      const fish = w.fishes.filter((f) => f.t.species && !f.t.junk);
+      return fish.filter((f) => f.t.rare).length / fish.length;
+    };
+    expect(share('firtina')).toBeGreaterThan(share('gunes') + 0.05);
   });
 
   it('yalnızca bölgenin derinliğindeki türler doğar', () => {

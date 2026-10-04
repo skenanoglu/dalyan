@@ -26,6 +26,10 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
       </header>
       <p class="f-hint" data-el="hint">▼ ile oltayı indir</p>
       <p class="f-banner" data-el="banner" hidden></p>
+      <div class="f-tension" data-el="tensionWrap" hidden>
+        <small>GERGİNLİK</small>
+        <div class="f-tension-track"><div class="f-tension-fill" data-el="tensionFill"></div></div>
+      </div>
       <div class="f-pad" data-el="pad">
         <div class="f-group">
           <button class="f-btn" data-key="left" aria-label="Sola">◀</button>
@@ -54,7 +58,16 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
   const el = (name: string): HTMLElement => root.querySelector(`[data-el="${name}"]`) as HTMLElement;
   const canvas = root.querySelector('canvas')!;
   const ctx = canvas.getContext('2d')!;
-  const hud = { time: el('time'), timeChip: el('timeChip'), bucket: el('bucket'), bucketChip: el('bucketChip'), depth: el('depth'), hint: el('hint') };
+  const hud = {
+    time: el('time'),
+    timeChip: el('timeChip'),
+    bucket: el('bucket'),
+    bucketChip: el('bucketChip'),
+    depth: el('depth'),
+    hint: el('hint'),
+    tensionWrap: el('tensionWrap'),
+    tensionFill: el('tensionFill'),
+  };
   el('zone').textContent = '';
 
   const sfx = new FishingSfx();
@@ -89,7 +102,7 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
   const weather = WEATHER[input.weather];
   el('weather').textContent = `${weather.icon} ${weather.name}${input.night ? ` · ${NIGHT.icon} Gece` : ''}`;
   const bannerText = [
-    input.weather === 'firtina' ? '⛈️ Fırtına! Tekne sürüklenir, olta savrulur.' : '',
+    input.weather === 'firtina' ? '⛈️ Fırtına! Tekne sürüklenir, olta savrulur, nadir balıklar daha sık çıkar.' : '',
     input.weather === 'yagmur' ? '🌧️ Yağmur: balıklar hareketli, su bulanık.' : '',
     input.night ? `${NIGHT.icon} Gece: fener sadece yakını aydınlatır.` : '',
   ].filter(Boolean);
@@ -197,6 +210,13 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
       hud.depth.textContent = depth;
     }
     hud.hint.hidden = world.hookHasEntered || world.over;
+    const rareHooked = world.hooks.some((h) => h.fish?.t.rare);
+    hud.tensionWrap.hidden = !rareHooked;
+    if (rareHooked) {
+      const pct = Math.round(world.tension * 100);
+      hud.tensionFill.style.width = `${pct}%`;
+      hud.tensionFill.classList.toggle('danger', world.tension > 0.7);
+    }
   };
 
   // Akıcı değilse bir kez kaliteyi düşür (Balık Avı'ndaki kaliteOlc).
@@ -232,7 +252,9 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
     for (const e of world.events) {
       sfx.play(e);
       if (e === 'catch') haptic(15);
-      else if (e === 'bad' || e === 'zap') haptic(40);
+      else if (e === 'bad' || e === 'zap' || e === 'escape') haptic(40);
+      else if (e === 'rare') haptic(50);
+      else if (e === 'gold') haptic(70);
       else if (e === 'thunder') haptic(80);
     }
     world.events.length = 0;

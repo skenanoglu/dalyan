@@ -94,8 +94,14 @@ export class FishingSfx {
       case 'gold':
         [660, 880, 1100, 1320, 1760].forEach((f, i) => this.tone(f, 0.16, 'triangle', 0.12, null, i * 0.07));
         break;
+      case 'rare':
+        [660, 990, 1320].forEach((f, i) => this.tone(f, 0.14, 'triangle', 0.1, null, i * 0.08));
+        break;
       case 'bad':
         this.tone(240, 0.35, 'sawtooth', 0.08, 90);
+        break;
+      case 'escape':
+        this.tone(320, 0.3, 'sawtooth', 0.09, 110);
         break;
       case 'zap':
         this.tone(900, 0.25, 'square', 0.06, 200);

@@ -59,7 +59,11 @@ export interface Weed { x: number; h: number; c: string; w: number; p: number }
 export interface Rock { x: number; w: number; h: number; c: string }
 export interface Drop { x: number; y: number; v: number }
 
-export type FishingEvent = 'start' | 'splash' | 'catch' | 'score' | 'gold' | 'bad' | 'zap' | 'tick' | 'thunder' | 'end';
+export type FishingEvent = 'start' | 'splash' | 'catch' | 'score' | 'rare' | 'gold' | 'bad' | 'zap' | 'tick' | 'thunder' | 'end' | 'escape';
+
+/** Nadir balık oltadayken ↑ ile hızlı çekiş gerginliği artırır; tavana vurursa balık kurtulur. */
+const TENSION_RATE = 0.5;
+const TENSION_RELAX = 0.75;
 
 export interface WorldOptions {
   zone: ZoneId;
@@ -124,6 +128,8 @@ export class FishingWorld {
   over = false;
   hookHasEntered = false;
   camY = 0;
+  /** Nadir balık mücadelesi gerginliği (0-1); 1'e varırsa balık kurtulur. */
+  tension = 0;
 
   readonly boat = { x: W / 2 - 60, vx: 0, tilt: 0 };
   /** Kısa aralıklı iğneler; [0] elle kontrol edilen (üstteki), diğerleri sabit aralıkla onu izler. */
@@ -299,6 +305,8 @@ export class FishingWorld {
       if (t.junk) w = junk >= this.weather.junkCap ? 0 : w * this.weather.junkWeight;
       // İğne yeterince güçlü değilse pahalı türler ısırmaz (tehlikeler ve çöp hariç: köpekbalığı her zaman görünür).
       if (t.species && !t.hazard && !t.junk && SPECIES[t.species].price > this.hookMaxPrice) w = 0;
+      // Fırtınada nadir türler daha sık doğar (tehlikeler hariç, onlar sharkWeight'le ayrı yönetilir).
+      if (t.rare && !t.hazard) w *= this.weather.rareWeight;
       if (t.species && this.baitLikes.has(t.species)) w *= BAIT_PULL;
       if (this.night && t.species) {
         if (NIGHT.likes.includes(t.species)) w *= NIGHT.likeX;
@@ -436,7 +444,25 @@ export class FishingWorld {
         const slowest = hooked.reduce((a, b) => (a.t.reel < b.t.reel ? a : b));
         vy = -140 * this.makara * slowest.t.reel * (input.up ? 1.6 : 1);
       }
+      // Nadir balık mücadelesi: hızlı çekiş (↑) gerginliği artırır, bırakmak dinlendirir; tavana vurursa balık kurtulur.
+      const rareHooked = hooked.some((f) => f.t.rare);
+      if (rareHooked && input.up && !input.down) {
+        this.tension = clamp(this.tension + TENSION_RATE * dt, 0, 1);
+        if (this.tension >= 1) {
+          for (const h of this.hooks) {
+            if (h.fish?.t.rare) {
+              this.popup(h.x, h.y - 30, `${h.fish.t.name} kurtuldu!`, '#ff9a4a');
+              this.releaseFish(h);
+            }
+          }
+          this.tension = 0;
+          this.events.push('escape');
+        }
+      } else {
+        this.tension = Math.max(0, this.tension - TENSION_RELAX * (rareHooked ? 1 : 2) * dt);
+      }
     } else if (master.stun <= 0) {
+      this.tension = Math.max(0, this.tension - TENSION_RELAX * 2 * dt);
       if (input.down) vy = this.inisHizi; // Kurşun
       else if (input.up) vy = -300;
     }
@@ -488,8 +514,14 @@ export class FishingWorld {
         this.events.push('bad');
       } else if (f.t.joker) {
         this.popup(h.x, h.y - 20, `${f.t.name}!`, '#ffd23f', 30);
-        this.sparkles(h.x, h.y, 24);
+        this.sparkles(h.x, h.y, 24, '255,215,80');
+        this.flash = Math.max(this.flash, 0.8);
         this.events.push('gold');
+      } else if (f.t.rare) {
+        this.popup(h.x, h.y - 20, `★ ${f.t.name}!`, '#7dffb0', 26);
+        this.sparkles(h.x, h.y, 16, this.pick(['125,255,176', '125,220,255', '255,215,80']));
+        this.flash = Math.max(this.flash, 0.5);
+        this.events.push('rare');
       } else {
         this.popup(h.x, h.y - 20, `+ ${f.t.name}`, '#8dff9a');
         this.events.push('score');

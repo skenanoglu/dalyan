@@ -16,6 +16,8 @@ export interface WeatherDef {
   junkCap: number;
   junkWeight: number;
   sharkWeight: number;
+  /** Nadir türlerin görülme ağırlığı çarpanı; fırtınada derin/nadir balıklar daha sık çıkar. */
+  rareWeight: number;
   /** Rüzgârın tekneyi itme kuvveti (px/sn²); 0 = sürüklenme yok. */
   drift: number;
   /** Dalganın misinayı savurma genliği (px). */
@@ -41,6 +43,7 @@ export const WEATHER: Record<WeatherId, WeatherDef> = {
     junkCap: 2,
     junkWeight: 1,
     sharkWeight: 1,
+    rareWeight: 1,
     drift: 0,
     hookSway: 0,
     rain: 0,
@@ -59,6 +62,7 @@ export const WEATHER: Record<WeatherId, WeatherDef> = {
     junkCap: 3,
     junkWeight: 1.3,
     sharkWeight: 1,
+    rareWeight: 1.2,
     drift: 0,
     hookSway: 6,
     rain: 90,
@@ -77,6 +81,7 @@ export const WEATHER: Record<WeatherId, WeatherDef> = {
     junkCap: 4,
     junkWeight: 2,
     sharkWeight: 1.6,
+    rareWeight: 1.8,
     drift: 380,
     hookSway: 22,
     rain: 220,

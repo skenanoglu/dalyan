@@ -168,3 +168,25 @@
 }
 .f-banner[hidden] { display: none; }
 @keyframes f-pop { from { opacity: 0; transform: translate(-50%, -8px); } }
+
+/* ---------- Nadir balık gerginlik göstergesi ---------- */
+.f-tension {
+  position: absolute;
+  top: 16%;
+  left: 50%;
+  z-index: 2;
+  width: min(220px, 70%);
+  margin: 0;
+  padding: 7px 12px;
+  border-radius: 12px;
+  background: rgba(5, 20, 40, 0.72);
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+  animation: f-pop 0.25s ease;
+}
+.f-tension[hidden] { display: none; }
+.f-tension small { display: block; margin-bottom: 4px; font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #fef3c7; }
+.f-tension-track { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.18); overflow: hidden; }
+.f-tension-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #7dffb0, #ffd23f); transition: width 80ms linear; }
+.f-tension-fill.danger { background: linear-gradient(90deg, #ffd23f, #ff5a5a); }
