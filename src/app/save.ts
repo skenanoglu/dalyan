@@ -4,6 +4,7 @@ import { SPECIES_ORDER, isSpeciesId } from './species';
 import { BAIT_ORDER, BOAT_ORDER, HOOK_ORDER, LINE_ORDER, MAX_HOOK_SLOTS, ROD_ORDER, isBaitId, isBoatId, isHookId, isLineId, isRodId } from './gear';
 import { ACHIEVEMENT_ORDER, type AchievementId } from './achievements';
 import { defaultDaily, type DailyQuestState, type DailyState } from './quests';
+import { defaultReferral, isReferralCode, type ReferralState } from './referral';
 
 export const SAVE_KEY = 'dalyan.profil';
 export const SAVE_VERSION = 5;
@@ -48,6 +49,7 @@ export interface Profile {
   stats: { trips: number; totalMoney: number; totalFish: number };
   achievements: Partial<Record<AchievementId, { unlockedAt: number }>>;
   daily: DailyState;
+  referral: ReferralState;
 }
 
 const flags = <K extends string>(all: K[], on: K[]): Record<K, boolean> =>
@@ -77,6 +79,7 @@ export function defaultProfile(): Profile {
     stats: { trips: 0, totalMoney: 0, totalFish: 0 },
     achievements: {},
     daily: defaultDaily(),
+    referral: defaultReferral(),
   };
 }
 
@@ -176,6 +179,11 @@ export function parseProfile(raw: string | null): Profile {
       streak: int(data.daily.streak) ?? 0,
       lastDate: typeof data.daily.lastDate === 'string' ? data.daily.lastDate : null,
     };
+  }
+  if (isObj(data.referral)) {
+    if (isReferralCode(data.referral.code)) p.referral.code = data.referral.code;
+    p.referral.sharedBonusClaimed = bool(data.referral.sharedBonusClaimed, false);
+    p.referral.referredBy = isReferralCode(data.referral.referredBy) ? data.referral.referredBy : null;
   }
   return p;
 }

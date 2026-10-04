@@ -192,6 +192,27 @@ button:disabled { cursor: default; opacity: 0.45; }
 .auth-note { margin: 0; color: var(--dim); font-size: 12px; line-height: 1.5; }
 @keyframes pop { from { transform: scale(0.96); opacity: 0; } }
 
+.invite-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.invite-head { font-weight: 800; font-size: 14px; }
+.invite-code {
+  align-self: flex-start;
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1px dashed rgba(255, 200, 87, 0.5);
+  background: rgba(255, 200, 87, 0.08);
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 3px;
+  color: var(--gold);
+}
+
 .tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

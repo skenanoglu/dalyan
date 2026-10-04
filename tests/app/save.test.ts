@@ -1,19 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { defaultProfile, parseProfile } from '../../src/app/save';
+import { defaultProfile, parseProfile, type Profile } from '../../src/app/save';
+
+// referral.code her defaultProfile() çağrısında rastgele üretilir; karşılaştırmadan önce sabitlenir.
+const sameCode = (p: Profile): Profile => ({ ...p, referral: { ...p.referral, code: 'X' } });
 
 describe('kayıt', () => {
   it('kayıt yoksa varsayılan profil: kıyı, kamış olta ve ekmek', () => {
     const p = parseProfile(null);
-    expect(p).toEqual(defaultProfile());
+    expect(sameCode(p)).toEqual(sameCode(defaultProfile()));
     expect(p.zones).toEqual({ kiyi: true, bogaz: false, cukur: false, marmara: false });
     expect(p.rod).toBe('kamis');
     expect(p.baitSlots).toEqual(['ekmek']);
   });
 
   it('bozuk kayıt varsayılana döner', () => {
-    expect(parseProfile('{bozuk')).toEqual(defaultProfile());
-    expect(parseProfile('[1,2]')).toEqual(defaultProfile());
-    expect(parseProfile('"yazi"')).toEqual(defaultProfile());
+    expect(sameCode(parseProfile('{bozuk'))).toEqual(sameCode(defaultProfile()));
+    expect(sameCode(parseProfile('[1,2]'))).toEqual(sameCode(defaultProfile()));
+    expect(sameCode(parseProfile('"yazi"'))).toEqual(sameCode(defaultProfile()));
   });
 
   it('eski sürüm alanları atılır, geçersiz değerler temizlenir', () => {
@@ -63,6 +66,7 @@ describe('kayıt', () => {
     p.night = true;
     p.stats = { trips: 4, totalMoney: 900, totalFish: 41 };
     p.achievements = { 'ilk-av': { unlockedAt: 1700000000000 } };
+    p.referral = { code: p.referral.code, sharedBonusClaimed: true, referredBy: 'ABCDEF' };
     expect(parseProfile(JSON.stringify(p))).toEqual(p);
   });
 

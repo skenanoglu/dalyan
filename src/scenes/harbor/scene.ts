@@ -8,6 +8,7 @@ import { SPECIES, SPECIES_ORDER } from '../../app/species';
 import { BAITS, BAIT_ORDER, BOATS, BOAT_ORDER, HOOKS, HOOK_ORDER, LINES, LINE_ORDER, RODS, ROD_ORDER } from '../../app/gear';
 import { NIGHT, WEATHER } from '../../app/weather';
 import { ACHIEVEMENTS, ACHIEVEMENT_ORDER } from '../../app/achievements';
+import { REFERRAL_SHARE_BONUS, REFERRAL_WELCOME_BONUS, claimShareBonus } from '../../app/referral';
 import {
   buyBait,
   buyBoat,
@@ -69,7 +70,7 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
         </header>
         <div class="skyline">${SKYLINE_SVG}</div>
         ${banner ? bannerView(banner) : ''}
-        ${accountOpen ? accountView(app.user, { authMode, authBusy, authError }) : ''}
+        ${accountOpen ? accountView(p, app.user, { authMode, authBusy, authError }) : ''}
         <nav class="tabs">
           ${TABS.map(([id, label]) => `<button class="tab ${tab === id ? 'on' : ''}" data-act="tab" data-arg="${id}">${label}</button>`).join('')}
         </nav>
@@ -120,6 +121,17 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
     render();
   };
 
+  const submitInvite = async (): Promise<void> => {
+    const link = `${location.origin}${location.pathname}?ref=${app.profile.referral.code}`;
+    try {
+      if (navigator.share) await navigator.share({ title: 'DALYAN', text: 'DALYAN balık tutma oyununa gel, birlikte oynayalım! 🎣', url: link });
+      else await navigator.clipboard?.writeText(link);
+    } catch {
+      return; // paylaşım iptal edildi ya da desteklenmiyor
+    }
+    if (commit(claimShareBonus(app.profile))) render();
+  };
+
   const offAuth = app.onAuth(() => render());
 
   const offDrag = bindBaitDrag(root, (slot, baitId) => {
@@ -151,6 +163,9 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
         accountOpen = false;
         void signOutUser();
         break;
+      case 'invite-share':
+        void submitInvite();
+        return;
       case 'tab':
         tab = arg as Tab;
         root.scrollTop = 0;
@@ -240,7 +255,7 @@ interface AuthState {
   authError: string | null;
 }
 
-function accountView(user: User | null, state: AuthState): string {
+function accountView(p: Profile, user: User | null, state: AuthState): string {
   const body = user ? loggedInView(user) : firebaseReady ? authFormView(state) : notConfiguredView();
   return `
     <div class="modal">
@@ -249,6 +264,20 @@ function accountView(user: User | null, state: AuthState): string {
         <button class="icon-btn" data-act="account-close" aria-label="Kapat">✕</button>
       </div>
       ${body}
+      ${inviteView(p)}
+    </div>`;
+}
+
+function inviteView(p: Profile): string {
+  const r = p.referral;
+  return `
+    <div class="invite-card">
+      <div class="invite-head">🎁 Arkadaşını Davet Et</div>
+      <p class="auth-note">Linkini paylaş: arkadaşın ilk girişinde ${money(REFERRAL_WELCOME_BONUS)}, sen paylaşınca ${money(REFERRAL_SHARE_BONUS)} kazanırsın.</p>
+      <div class="invite-code">${r.code}</div>
+      <button class="btn primary" data-act="invite-share" ${r.sharedBonusClaimed ? 'disabled' : ''}>
+        ${r.sharedBonusClaimed ? 'Paylaşıldı ✓' : `Paylaş · +${money(REFERRAL_SHARE_BONUS)}`}
+      </button>
     </div>`;
 }
 
