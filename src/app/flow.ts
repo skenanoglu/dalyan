@@ -24,7 +24,7 @@ export async function runGame(app: App): Promise<void> {
 
 export async function runTrip(app: App, choice: HarborOut, weather: WeatherId): Promise<TripSummary> {
   const seed = randomSeed();
-  const { rod, line, hook, boat, fishSeconds, tank, harpoonLevel } = app.profile;
+  const { rod, line, hook, boat, fishSeconds, tank, harpoonSel: harpoonLevel } = app.profile;
   const baitSlots = activeBaitSlots(app.profile);
   const out = await app.show(
     fishingScene,

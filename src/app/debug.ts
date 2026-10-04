@@ -56,7 +56,7 @@ export function startDebugScene(app: App, params: URLSearchParams): boolean {
           boat: app.profile.boat,
           mode: params.get('mod') === 'zipkin' ? 'zipkin' : 'olta',
           tank: app.profile.tank,
-          harpoonLevel: app.profile.harpoonLevel,
+          harpoonLevel: app.profile.harpoonSel,
           duration: app.profile.fishSeconds,
           weather,
           night,

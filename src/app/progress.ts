@@ -115,6 +115,15 @@ export function buyHarpoon(p: Profile): Profile | null {
   const next = structuredClone(p);
   next.money -= target.price;
   next.harpoonLevel = target.level;
+  next.harpoonSel = target.level; // yeni zıpkın hemen takılır
+  return next;
+}
+
+/** Sahip olunan zıpkın seviyelerinden birini kullanıma alır. */
+export function setHarpoon(p: Profile, level: number): Profile | null {
+  if (!Number.isInteger(level) || level < 1 || level > p.harpoonLevel) return null;
+  const next = structuredClone(p);
+  next.harpoonSel = level;
   return next;
 }
 

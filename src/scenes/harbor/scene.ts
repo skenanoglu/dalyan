@@ -33,6 +33,7 @@ import {
   nextHookSlotPrice,
   rodHookCapacity,
   setBaitSlot,
+  setHarpoon,
 } from '../../app/progress';
 import { money } from '../../app/format';
 import { SKYLINE_SVG } from './skyline';
@@ -190,6 +191,9 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
         break;
       case 'use-boat':
         if (p.boats[arg as BoatId]) commit({ ...p, boat: arg as BoatId });
+        break;
+      case 'use-harpoon':
+        commit(setHarpoon(p, Number(arg)));
         break;
       case 'use-tank':
         if (p.tanks[arg as TankId]) commit({ ...p, tank: arg as TankId });
@@ -389,6 +393,21 @@ function rodInfoView(p: Profile): string {
   return `<ul class="rod-info">${rows}</ul>`;
 }
 
+/** Av şekli seçici (Olta / Zıpkın); Oyna ve Donanım sekmelerinde ortak. */
+function modeRow(p: Profile): string {
+  const mode = effectiveMode(p);
+  return `
+      <div class="row-label">Av şekli</div>
+      <div class="chips">
+        <button class="chip ${mode === 'olta' ? 'on' : ''}" data-act="mode" data-arg="olta">🎣 Olta</button>
+        ${
+          canDive(p)
+            ? `<button class="chip ${mode === 'zipkin' ? 'on' : ''}" data-act="mode" data-arg="zipkin">🤿 Zıpkın</button>`
+            : `<span class="chip locked">🔒 Zıpkın · ${p.harpoonLevel > 0 ? 'tüp al' : 'zıpkın + tüp al'}</span>`
+        }
+      </div>`;
+}
+
 function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
   const weather = WEATHER[weatherId];
   const z = ZONES[zone];
@@ -401,7 +420,7 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
   ).join('');
   const mode = effectiveMode(p);
   const tank = TANKS[p.tank];
-  const harpoon = HARPOONS[Math.max(1, p.harpoonLevel) - 1];
+  const harpoon = HARPOONS[Math.max(1, p.harpoonSel) - 1];
   const reach = Math.min(mode === 'zipkin' ? tank.depth : line.depth, z.depth);
   const badges = (
     mode === 'zipkin'
@@ -429,15 +448,7 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
         <div><h3>Olta</h3><p>Tekneyle açıl. Küçük balıklar sığda, büyükler derinde.</p></div>
       </div>
       ${dailyView(p)}
-      <div class="row-label">Av şekli</div>
-      <div class="chips">
-        <button class="chip ${mode === 'olta' ? 'on' : ''}" data-act="mode" data-arg="olta">🎣 Olta</button>
-        ${
-          canDive(p)
-            ? `<button class="chip ${mode === 'zipkin' ? 'on' : ''}" data-act="mode" data-arg="zipkin">🤿 Zıpkın</button>`
-            : `<span class="chip locked">🔒 Zıpkın · ${p.harpoonLevel > 0 ? 'tüp al' : 'zıpkın + tüp al'}</span>`
-        }
-      </div>
+      ${modeRow(p)}
       <div class="row-label">Bölge</div>
       <div class="chips wrap">${zoneChips(p, zone)}</div>
       <div class="row-label">Zaman</div>
@@ -467,6 +478,9 @@ function donanimView(p: Profile, rodInfoOpen: boolean): string {
     .join('');
   const boats = BOAT_ORDER.filter((id) => p.boats[id])
     .map((id) => gearSelectCard(BOATS[id].icon, BOATS[id].name, `kova ${BOATS[id].capacity}`, id === p.boat, 'use-boat', id))
+    .join('');
+  const harpoons = HARPOONS.filter((h) => h.level <= p.harpoonLevel)
+    .map((h) => gearSelectCard(h.icon, h.name, `${h.ammo} zıpkın`, h.level === p.harpoonSel, 'use-harpoon', String(h.level)))
     .join('');
   const tanks = TANK_ORDER.filter((id) => p.tanks[id])
     .map((id) => gearSelectCard(TANKS[id].icon, TANKS[id].name, `${TANKS[id].depth} m`, id === p.tank, 'use-tank', id))
@@ -499,6 +513,7 @@ function donanimView(p: Profile, rodInfoOpen: boolean): string {
     .map((id) => `<div class="bait-chip" data-drag-bait="${id}">${BAITS[id].icon} ${BAITS[id].name}</div>`)
     .join('');
   return `
+    ${modeRow(p)}
     <div class="row-label row-label-info">
       Olta
       <button class="icon-btn tiny" data-act="rod-info" aria-label="Olta özellikleri">ℹ️</button>
@@ -511,6 +526,8 @@ function donanimView(p: Profile, rodInfoOpen: boolean): string {
     <div class="gear-grid">${hookTiers}</div>
     <div class="row-label">Tekne</div>
     <div class="gear-grid">${boats}</div>
+    <div class="row-label">Zıpkın</div>
+    ${harpoons ? `<div class="gear-grid">${harpoons}</div>` : '<p class="rig-note">Dükkândan zıpkın al.</p>'}
     <div class="row-label">Dalış tüpü</div>
     ${tanks ? `<div class="gear-grid">${tanks}</div>` : '<p class="rig-note">Dükkândan zıpkın ve tüp al; sonra Oyna sekmesinden zıpkınla dalabilirsin.</p>'}
     <p class="rig-note">Bir yemi sürükleyip bir iğneye bırak; her iğne kendi yemiyle balık çeker. ${rod.name}: en fazla ${cap} iğne taşır.</p>
@@ -585,7 +602,7 @@ function shopView(p: Profile): string {
   const harpoons = HARPOONS.map((h) => {
     const owned = h.level <= p.harpoonLevel;
     const action = owned
-      ? `<span class="maxed">${h.level === p.harpoonLevel ? 'Elinde' : 'Sende'}</span>`
+      ? `<span class="maxed">${h.level === p.harpoonSel ? 'Elinde' : 'Sende'}</span>`
       : `<button class="btn buy" data-act="buy-harpoon" ${h.level === p.harpoonLevel + 1 && canBuyHarpoon(p) ? '' : 'disabled'}>${money(h.price)}</button>`;
     return shopCard(h.icon, h.name, `${h.ammo} zıpkın · ${h.desc}`, action, owned);
   }).join('');

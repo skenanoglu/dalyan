@@ -18,6 +18,7 @@ import {
   rodHookCapacity,
   sellCatch,
   setBaitSlot,
+  setHarpoon,
   unitPrice,
   varietyMultiplier,
 } from '../../src/app/progress';
@@ -225,6 +226,25 @@ describe('zıpkın ve dalış tüpü', () => {
     expect(HARPOONS.map((h) => h.ammo)).toEqual([30, 50, 70, 90]);
     expect(harpoonAmmo(0)).toBe(0);
     expect(harpoonAmmo(2)).toBe(50);
+  });
+
+  it('yeni zıpkın hemen takılır; sahip olunan seviyeler arasında geçiş yapılır', () => {
+    let p = defaultProfile();
+    p.money = 1_000_000;
+    p = buyHarpoon(p)!;
+    p = buyHarpoon(p)!;
+    p = buyHarpoon(p)!;
+    expect(p.harpoonSel).toBe(3);
+    const back = setHarpoon(p, 1)!;
+    expect(back.harpoonSel).toBe(1);
+    expect(back.harpoonLevel).toBe(3);
+    // sahip olunmayan seviye ya da geçersiz değer seçilemez
+    expect(setHarpoon(p, 4)).toBeNull();
+    expect(setHarpoon(p, 0)).toBeNull();
+    expect(setHarpoon(defaultProfile(), 1)).toBeNull();
+    // geliştirme alınca seçili seviye yine en yeniye geçer
+    const up = buyHarpoon(back)!;
+    expect(up.harpoonSel).toBe(4);
   });
 
   it('zıpkın geliştirmeleri sırayla alınır, en üst seviyeden sonra alınamaz', () => {

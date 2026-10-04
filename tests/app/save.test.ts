@@ -81,7 +81,12 @@ describe('kayıt', () => {
   });
 
   it('eski kayıttaki tek kademeli zıpkın seviye 1 olur; seviye en üste sıkıştırılır', () => {
-    expect(parseProfile(JSON.stringify({ harpoon: true })).harpoonLevel).toBe(1);
+    const old = parseProfile(JSON.stringify({ harpoon: true }));
+    expect([old.harpoonLevel, old.harpoonSel]).toEqual([1, 1]);
+    // seçili zıpkın sahip olunan seviyeler içinde kalır
+    expect(parseProfile(JSON.stringify({ harpoonLevel: 3, harpoonSel: 2 })).harpoonSel).toBe(2);
+    expect(parseProfile(JSON.stringify({ harpoonLevel: 2, harpoonSel: 4 })).harpoonSel).toBe(2);
+    expect(parseProfile(JSON.stringify({ harpoonLevel: 0, harpoonSel: 3 })).harpoonSel).toBe(0);
     expect(parseProfile(JSON.stringify({ harpoon: false })).harpoonLevel).toBe(0);
     expect(parseProfile(JSON.stringify({ harpoonLevel: 99 })).harpoonLevel).toBe(4);
     expect(parseProfile(JSON.stringify({ harpoonLevel: 3, harpoon: true })).harpoonLevel).toBe(3);

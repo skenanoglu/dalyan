@@ -42,6 +42,8 @@ export interface Profile {
   /** Zıpkın alındı mı; sahip olunan dalış tüpleri ve seçili tüp. */
   /** Zıpkın seviyesi (0 = zıpkın yok); seviye arttıkça dalış başına zıpkın sayısı artar. */
   harpoonLevel: number;
+  /** Elde kullanılan zıpkın seviyesi (1..harpoonLevel); donanımdan değiştirilir. 0 = zıpkın yok. */
+  harpoonSel: number;
   tanks: Record<TankId, boolean>;
   tank: TankId;
   /** Av şekli: olta ya da zıpkın (zıpkın için zıpkın + seçili tüp gerekir). */
@@ -79,6 +81,7 @@ export function defaultProfile(): Profile {
     boats: flags(BOAT_ORDER, ['sandal']),
     boat: 'sandal',
     harpoonLevel: 0,
+    harpoonSel: 0,
     tanks: flags(TANK_ORDER, []),
     tank: 'mini',
     fishMode: 'olta',
@@ -142,6 +145,9 @@ export function parseProfile(raw: string | null): Profile {
   if (isBoatId(data.boat) && p.boats[data.boat]) p.boat = data.boat;
   // Eski kayıtlardaki tek kademeli zıpkın (harpoon: true) seviye 1 sayılır.
   p.harpoonLevel = Math.min(MAX_HARPOON_LEVEL, int(data.harpoonLevel) ?? (data.harpoon === true ? 1 : 0));
+  // Seçili zıpkın sahip olunan seviyelerden biri olmalı; yoksa en iyisi takılır.
+  const sel = int(data.harpoonSel);
+  p.harpoonSel = p.harpoonLevel === 0 ? 0 : sel !== null && sel >= 1 && sel <= p.harpoonLevel ? sel : p.harpoonLevel;
   if (isObj(data.tanks)) for (const t of TANK_ORDER) p.tanks[t] = bool(data.tanks[t], false);
   if (isTankId(data.tank) && p.tanks[data.tank]) p.tank = data.tank;
   else p.tank = TANK_ORDER.find((t) => p.tanks[t]) ?? 'mini';
