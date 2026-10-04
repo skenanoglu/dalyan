@@ -104,13 +104,19 @@ export class FishingRenderer {
     this.stormSky(g, w);
     this.waterAnim(g, w, o.lowQuality);
     this.seabedAnim(g, w);
-    for (const f of w.fishes) if (!f.caught) this.entity(g, f, f.x, f.y);
+    for (const f of w.fishes) {
+      if (f.caught) continue;
+      if ((f.dash ?? 0) > 0) this.dashStreak(g, f);
+      this.entity(g, f, f.x, f.y);
+    }
     this.bubbles(g, w);
     this.murk(g, w);
     this.boat(g, w);
     if (w.night) this.lantern(g, w);
-    this.lineAndHook(g, w);
+    if (w.diving) this.diverFigure(g, w);
+    else this.lineAndHook(g, w);
     this.flights(g, w);
+    this.gulls(g, w);
     this.surfaceOverlay(g, w);
     this.effects(g, w);
     this.rain(g, w);
@@ -466,21 +472,24 @@ export class FishingRenderer {
       rr(g, -28, -54, 32, 40, 9);
       g.fill();
     }
-    g.fillStyle = '#f2c79b';
-    circle(g, -12, -66, 12);
-    g.fillStyle = 'rgba(230,120,100,.5)';
-    circle(g, -5, -62, 3);
-    g.fillStyle = '#222';
-    circle(g, -4, -68, 1.8);
-    g.fillStyle = '#f4d03f';
-    g.beginPath();
-    g.ellipse(-12, -75, 19, 5, 0, 0, TAU);
-    g.fill();
-    if (v.cabin) {
-      rr(g, -22, -90, 20, 16, 6);
+    // Dalışta balıkçı suya indiği için teknede görünmez.
+    if (!w.diving) {
+      g.fillStyle = '#f2c79b';
+      circle(g, -12, -66, 12);
+      g.fillStyle = 'rgba(230,120,100,.5)';
+      circle(g, -5, -62, 3);
+      g.fillStyle = '#222';
+      circle(g, -4, -68, 1.8);
+      g.fillStyle = '#f4d03f';
+      g.beginPath();
+      g.ellipse(-12, -75, 19, 5, 0, 0, TAU);
       g.fill();
-      g.fillStyle = '#e67e22';
-      g.fillRect(-22, -79, 20, 3);
+      if (v.cabin) {
+        rr(g, -22, -90, 20, 16, 6);
+        g.fill();
+        g.fillStyle = '#e67e22';
+        g.fillRect(-22, -79, 20, 3);
+      }
     }
 
     const half = v.half;
@@ -510,25 +519,182 @@ export class FishingRenderer {
     g.textBaseline = 'middle';
     g.fillText('DALYAN', 0, 3);
 
-    g.lineCap = 'round';
-    g.strokeStyle = '#5a3a1a';
-    g.lineWidth = 3.5;
-    g.beginPath();
-    g.moveTo(0, -30);
-    g.lineTo(64, -92);
-    g.stroke();
-    g.fillStyle = '#34495e';
-    circle(g, 10, -40, 4.5);
-    g.strokeStyle = '#2e6db4';
-    g.lineWidth = 7;
-    g.beginPath();
-    g.moveTo(-8, -44);
-    g.lineTo(12, -44);
-    g.stroke();
-    g.fillStyle = '#f2c79b';
-    circle(g, 14, -44, 4.5);
-    g.lineCap = 'butt';
+    if (!w.diving) {
+      g.lineCap = 'round';
+      g.strokeStyle = '#5a3a1a';
+      g.lineWidth = 3.5;
+      g.beginPath();
+      g.moveTo(0, -30);
+      g.lineTo(64, -92);
+      g.stroke();
+      g.fillStyle = '#34495e';
+      circle(g, 10, -40, 4.5);
+      g.strokeStyle = '#2e6db4';
+      g.lineWidth = 7;
+      g.beginPath();
+      g.moveTo(-8, -44);
+      g.lineTo(12, -44);
+      g.stroke();
+      g.fillStyle = '#f2c79b';
+      circle(g, 14, -44, 4.5);
+      g.lineCap = 'butt';
+    }
     g.restore();
+  }
+
+  /** Suda yüzen tüplü dalgıç: hava hortumu tekneye bağlı, zıpkın bakılan yönde. */
+  private diverFigure(g: Ctx, w: FishingWorld): void {
+    const d = w.diver;
+    const rope = w.boatPoint(30, -10);
+    g.strokeStyle = 'rgba(240,240,240,.55)';
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.moveTo(rope.x, rope.y);
+    g.quadraticCurveTo((rope.x + d.x) / 2, Math.max(rope.y, d.y) + 20, d.x - d.dir * 6, d.y - 4);
+    g.stroke();
+
+    g.save();
+    g.translate(d.x, d.y);
+    if (d.dir < 0) g.scale(-1, 1);
+    const kick = Math.sin(w.T * (Math.abs(d.vx) + Math.abs(d.vy) > 20 ? 14 : 5)) * 0.35;
+    g.rotate(clamp(d.vy / 400, -0.4, 0.4) * (d.dir < 0 ? -1 : 1));
+    if (d.stun > 0) g.rotate(Math.sin(w.T * 20) * 0.2);
+    // yüzgeçler
+    g.fillStyle = '#e67e22';
+    g.save();
+    g.translate(-20, 2);
+    g.rotate(kick);
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(-13, -5);
+    g.lineTo(-13, 6);
+    g.closePath();
+    g.fill();
+    g.restore();
+    // gövde (dalış elbisesi)
+    g.fillStyle = '#1f2d3d';
+    g.beginPath();
+    g.ellipse(-4, 0, 19, 8, 0, 0, TAU);
+    g.fill();
+    // tüp
+    g.fillStyle = '#f4d03f';
+    rr(g, -16, -13, 18, 7, 3);
+    g.fill();
+    g.fillStyle = '#7f8c8d';
+    g.fillRect(-1, -12, 4, 4);
+    // baş + maske
+    g.fillStyle = '#f2c79b';
+    circle(g, 16, -2, 7);
+    g.fillStyle = '#1f2d3d';
+    g.beginPath();
+    g.arc(16, -5, 7, Math.PI, 0);
+    g.fill();
+    g.fillStyle = 'rgba(160,230,255,.9)';
+    rr(g, 16, -6, 8, 6, 2);
+    g.fill();
+    // zıpkın tabancası
+    g.strokeStyle = '#bdc3c7';
+    g.lineWidth = 2.5;
+    g.beginPath();
+    g.moveTo(10, 4);
+    g.lineTo(34, 4);
+    g.stroke();
+    g.fillStyle = '#7f8c8d';
+    rr(g, 8, 2, 8, 6, 2);
+    g.fill();
+    if (d.stun > 0) {
+      for (let i = 0; i < 3; i++) {
+        const a = w.T * 6 + (i * TAU) / 3;
+        drawStar(g, 16 + Math.cos(a) * 12, -14 + Math.sin(a) * 4, 5, 2, 5, '#ffe66d');
+      }
+    }
+    g.restore();
+
+    // atılan zıpkınlar
+    g.lineCap = 'round';
+    for (const s of w.spears) {
+      const len = Math.hypot(s.vx, s.vy) || 1;
+      const ux = s.vx / len;
+      const uy = s.vy / len;
+      g.strokeStyle = '#ecf0f1';
+      g.lineWidth = 2.5;
+      g.beginPath();
+      g.moveTo(s.x - ux * 26, s.y - uy * 26);
+      g.lineTo(s.x, s.y);
+      g.stroke();
+      g.fillStyle = '#bdc3c7';
+      g.beginPath();
+      g.moveTo(s.x + ux * 9, s.y + uy * 9);
+      g.lineTo(s.x - uy * 4, s.y + ux * 4);
+      g.lineTo(s.x + uy * 4, s.y - ux * 4);
+      g.closePath();
+      g.fill();
+    }
+    g.lineCap = 'butt';
+  }
+
+  /** Hızlanan avcı balığın arkasında su çizgileri. */
+  private dashStreak(g: Ctx, f: Fish): void {
+    g.strokeStyle = 'rgba(255,255,255,.55)';
+    g.lineWidth = 1.5;
+    for (let i = -1; i <= 1; i++) {
+      const x0 = f.x - f.dir * (f.t.len * 0.5 + 6);
+      g.beginPath();
+      g.moveTo(x0, f.y + i * f.t.h * 0.3);
+      g.lineTo(x0 - f.dir * (26 + Math.abs(i) * 10), f.y + i * f.t.h * 0.3);
+      g.stroke();
+    }
+  }
+
+  private gulls(g: Ctx, w: FishingWorld): void {
+    for (const b of w.gulls) {
+      g.save();
+      g.translate(b.x, b.y);
+      if (b.dir < 0) g.scale(-1, 1);
+      const diving = b.phase === 'dive';
+      const flap = diving ? -0.2 : Math.sin(w.T * 9 + b.x * 0.05);
+      // kanatlar
+      g.strokeStyle = '#f4f6f7';
+      g.lineWidth = 4;
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(-2, 0);
+      g.quadraticCurveTo(-14, -10 - flap * 8, -26, -4 - flap * 12);
+      g.moveTo(2, 0);
+      g.quadraticCurveTo(14, -10 - flap * 8, 26, -4 - flap * 12);
+      g.stroke();
+      g.strokeStyle = '#7f8c8d';
+      g.lineWidth = 3;
+      g.beginPath();
+      g.moveTo(-22, -5 - flap * 11);
+      g.lineTo(-27, -4 - flap * 12);
+      g.moveTo(22, -5 - flap * 11);
+      g.lineTo(27, -4 - flap * 12);
+      g.stroke();
+      g.lineCap = 'butt';
+      // gövde ve baş
+      g.fillStyle = '#ffffff';
+      g.beginPath();
+      g.ellipse(0, 2, 11, 5, 0, 0, TAU);
+      g.fill();
+      circle(g, 11, 0, 4);
+      g.fillStyle = '#f5b041';
+      g.beginPath();
+      g.moveTo(14, -1);
+      g.lineTo(21, 1);
+      g.lineTo(14, 3);
+      g.closePath();
+      g.fill();
+      g.fillStyle = '#111';
+      circle(g, 12, -1, 1);
+      if (b.carry) {
+        g.fillStyle = b.carry;
+        g.beginPath();
+        g.ellipse(24, 5, 6, 2.4, 0.4, 0, TAU);
+        g.fill();
+      }
+      g.restore();
+    }
   }
 
   private lineAndHook(g: Ctx, w: FishingWorld): void {
@@ -795,7 +961,8 @@ export class FishingRenderer {
       d.fillStyle = grad;
       d.fillRect(sx - sr, sy - sr, sr * 2, sr * 2);
     };
-    light(w.hook.x, w.hook.y, NIGHT.hookLight);
+    const focus = w.focus();
+    light(focus.x, focus.y, NIGHT.hookLight);
     const lamp = w.boatPoint(-40, -46);
     light(lamp.x, lamp.y, NIGHT.boatLight);
     d.globalCompositeOperation = 'source-over';
@@ -832,7 +999,7 @@ export class FishingRenderer {
     g.lineWidth = 1.2;
     g.beginPath();
     g.moveTo(bx + 11, top + h - 9);
-    g.lineTo(clamp(w.hook.x, 0, W), top + h);
+    g.lineTo(clamp(w.focus().x, 0, W), top + h);
     g.stroke();
   }
 }

@@ -1,7 +1,7 @@
 import './fishing.css';
 import { deferred, onAction, type SceneFactory } from '../../app/scene';
 import type { FishingIn, FishingOut } from '../../app/types';
-import { BOATS, HOOKS, LINES, RODS, unionBaitLikes } from '../../app/gear';
+import { BOATS, HOOKS, LINES, RODS, TANKS, unionBaitLikes } from '../../app/gear';
 import { NIGHT, WEATHER } from '../../app/weather';
 import { catchCount } from '../../app/catch';
 import { catchListHtml } from '../../ui/catch-list';
@@ -34,6 +34,9 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
         <div class="f-group">
           <button class="f-btn" data-key="left" aria-label="Sola">◀</button>
           <button class="f-btn" data-key="right" aria-label="Sağa">▶</button>
+        </div>
+        <div class="f-group" data-el="fireGroup" hidden>
+          <button class="f-btn f-btn-fire" data-key="fire" aria-label="Zıpkın at">🏹</button>
         </div>
         <div class="f-group">
           <button class="f-btn" data-key="down" aria-label="İndir">▼</button>
@@ -80,25 +83,33 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
   const line = LINES[input.line ?? 'ince'];
   const hook = HOOKS[input.hook ?? 'adi'];
   const boat = BOATS[input.boat ?? 'sandal'];
+  const diving = input.mode === 'zipkin';
+  const tank = TANKS[input.tank ?? 'mini'];
   const world = new FishingWorld({
     zone: input.zone,
     viewHeight: (cssH * W) / cssW,
     misinaM: line.depth,
     inisHizi: rod.drop,
     makara: rod.reel,
-    hookCount: input.baitSlots.length,
+    hookCount: diving ? 1 : input.baitSlots.length,
     duration: input.duration ?? 90,
-    baitLikes: unionBaitLikes(input.baitSlots),
+    baitLikes: diving ? [] : unionBaitLikes(input.baitSlots),
     baitSlots: input.baitSlots,
-    hookMaxPrice: hook.maxPrice,
+    // Dalışta iğne tavanı yok: ulaşılan türleri tüpün derinliği belirler.
+    hookMaxPrice: diving ? Infinity : hook.maxPrice,
     lineDurability: line.durability,
-    sharkReady: Boolean(rod.sharkReady && line.sharkReady),
+    diver: diving ? { depthM: tank.depth, speed: tank.speed, durability: tank.durability } : undefined,
+    sharkReady: diving ? Boolean(tank.sharkReady) : Boolean(rod.sharkReady && line.sharkReady),
     bucketCap: boat.capacity,
     boatId: input.boat ?? 'sandal',
     weather: input.weather,
     night: input.night,
   });
   el('zone').textContent = world.zoneName;
+  if (diving) {
+    el('fireGroup').hidden = false;
+    hud.hint.textContent = '◀ ▶ ▲ ▼ ile yüz, 🏹 ile zıpkın at';
+  }
   const weather = WEATHER[input.weather];
   el('weather').textContent = `${weather.icon} ${weather.name}${input.night ? ` · ${NIGHT.icon} Gece` : ''}`;
   const bannerText = [
@@ -201,16 +212,17 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
       hud.bucketChip.classList.toggle('full', bucket >= world.bucketCap);
     }
     let depth = '';
-    if (world.hook.y > SURFACE) {
-      const m = Math.max(0, Math.round((world.hook.y - SURFACE) / world.pxMetre));
-      depth = `${m} m${world.hook.y >= world.hookFloor() - 1 ? ' · misina bitti' : ''}`;
+    const focusY = world.focus().y;
+    if (focusY > SURFACE + (diving ? 12 : 0)) {
+      const m = Math.max(0, Math.round((focusY - SURFACE) / world.pxMetre));
+      depth = `${m} m${focusY >= world.reachFloor() - 1 ? (diving ? ' · tüp sınırı' : ' · misina bitti') : ''}`;
     }
     if (depth !== lastDepth) {
       lastDepth = depth;
       hud.depth.textContent = depth;
     }
     hud.hint.hidden = world.hookHasEntered || world.over;
-    const rareHooked = world.hooks.some((h) => h.fish?.t.rare);
+    const rareHooked = !diving && world.hooks.some((h) => h.fish?.t.rare);
     hud.tensionWrap.hidden = !rareHooked;
     if (rareHooked) {
       const pct = Math.round(world.tension * 100);
@@ -256,6 +268,7 @@ export const fishingScene: SceneFactory<FishingIn, FishingOut> = (root, input, a
       else if (e === 'rare') haptic(50);
       else if (e === 'gold') haptic(70);
       else if (e === 'thunder') haptic(80);
+      else if (e === 'spear') haptic(20);
     }
     world.events.length = 0;
     updateHud();

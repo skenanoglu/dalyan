@@ -1,4 +1,4 @@
-import type { BaitId, BoatId, HookId, LineId, RodId, SpeciesId } from './types';
+import type { BaitId, BoatId, HookId, LineId, RodId, SpeciesId, TankId } from './types';
 
 /** Olta tipi: ne kadar hızlı indirdiği ve ne kadar hızlı çektiği. Derinliği artık misina belirler. */
 export interface Rod {
@@ -123,6 +123,37 @@ export const BAITS: Record<BaitId, Bait> = {
 };
 
 export const BAIT_ORDER: BaitId[] = ['ekmek', 'solucan', 'karides', 'sardalya', 'kalamar'];
+
+/** Dalış tüpü: zıpkınla ne kadar derine inileceği, yüzme hızı ve köpekbalığı çarpma cezasını azaltan dayanıklılık. */
+export interface Tank {
+  id: TankId;
+  name: string;
+  icon: string;
+  price: number;
+  desc: string;
+  /** En derin dalış noktası (metre). */
+  depth: number;
+  /** Yüzme hızı (px/sn). */
+  speed: number;
+  /** 0-3: köpekbalığı çarpma cezasını azaltır. */
+  durability: number;
+  /** Yalnızca en iyi tüp: zıpkınla köpekbalığı avlanabilir. */
+  sharkReady?: boolean;
+}
+
+export const TANKS: Record<TankId, Tank> = {
+  mini: { id: 'mini', name: 'Mini Tüp', icon: '🫧', price: 1800, desc: 'Sığ sularda kısa dalış', depth: 10, speed: 110, durability: 0 },
+  orta: { id: 'orta', name: 'Orta Tüp', icon: '🤿', price: 5500, desc: 'Biraz daha derin ve hızlı', depth: 22, speed: 130, durability: 1 },
+  derin: { id: 'derin', name: 'Derin Tüp', icon: '🥽', price: 15000, desc: 'Orta derinliklere iner', depth: 45, speed: 150, durability: 2 },
+  teknik: { id: 'teknik', name: 'Teknik Tüp', icon: '🧜', price: 40000, desc: 'Marmara dibine iner; köpekbalığı da zıpkınlanır', depth: 90, speed: 175, durability: 3, sharkReady: true },
+};
+
+export const TANK_ORDER: TankId[] = ['mini', 'orta', 'derin', 'teknik'];
+
+/** Zıpkın tek kademedir; dalmak için ayrıca bir tüp gerekir. */
+export const HARPOON = { name: 'Zıpkın', icon: '🏹', price: 3000, desc: 'Suya dalıp balığı zıpkınla vurursun; tüp de gerekir' } as const;
+
+export const isTankId = (v: unknown): v is TankId => typeof v === 'string' && v in TANKS;
 
 /** Takılı yemlerin sevdiği türlerin birleşimi (tekrarsız); her iğne kendi yemiyle çeker. */
 export function unionBaitLikes(ids: BaitId[]): SpeciesId[] {

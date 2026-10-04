@@ -17,6 +17,7 @@ export type SpeciesId =
   | 'fener'
   | 'cizme'
   | 'naylon'
+  | 'pet'
   | 'kopekbaligi';
 
 /** Olta seferinin havası. */
@@ -30,6 +31,10 @@ export type LineId = 'ince' | 'orta' | 'kalin' | 'celik' | 'balina';
 export type HookId = 'adi' | 'sert' | 'ozel' | 'usta';
 /** Tekne: bir seferde tutulabilecek en fazla balık sayısını belirler. */
 export type BoatId = 'sandal' | 'kayik' | 'motor' | 'yat' | 'gemi';
+/** Dalış tüpü: zıpkınla avda ne kadar derine inileceğini ve yüzme hızını belirler. */
+export type TankId = 'mini' | 'orta' | 'derin' | 'teknik';
+/** Ava olta ile ya da zıpkın + tüple dalarak çıkılır. */
+export type FishMode = 'olta' | 'zipkin';
 
 /** Tür → adet. */
 export type Catch = Partial<Record<SpeciesId, number>>;
@@ -45,6 +50,8 @@ export interface HarborOut {
   zone: ZoneId;
   /** Olta gece mi atılacak. */
   night: boolean;
+  /** Olta ile mi, zıpkın + tüple dalarak mı çıkılacak. */
+  mode: FishMode;
 }
 
 export interface FishingIn {
@@ -56,6 +63,9 @@ export interface FishingIn {
   line?: LineId;
   hook?: HookId;
   boat?: BoatId;
+  /** Verilmezse olta; 'zipkin' ise tank ile dalınır (iğne/yem kullanılmaz). */
+  mode?: FishMode;
+  tank?: TankId;
   /** Av süresi (sn); verilmezse 90. */
   duration?: number;
   weather: WeatherId;

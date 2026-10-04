@@ -4,11 +4,16 @@ import {
   activeBaitSlots,
   applyTrip,
   buyBait,
+  buyHarpoon,
   buyHookSlot,
   buyRod,
+  buyTank,
   buyZone,
   canBuyHookSlot,
+  canBuyTank,
   canBuyZone,
+  canDive,
+  effectiveMode,
   nextHookSlotPrice,
   rodHookCapacity,
   sellCatch,
@@ -17,7 +22,7 @@ import {
   varietyMultiplier,
 } from '../../src/app/progress';
 import { defaultProfile } from '../../src/app/save';
-import { BAITS, LINES, LINE_ORDER, RODS } from '../../src/app/gear';
+import { BAITS, HARPOON, LINES, LINE_ORDER, RODS, TANKS } from '../../src/app/gear';
 import { afterTheft, catTarget } from '../../src/scenes/market/scene';
 import { Rng } from '../../src/app/rng';
 import { rollWeather } from '../../src/app/weather';
@@ -193,5 +198,47 @@ describe('hava tahmini', () => {
     expect(n.gunes / 4000).toBeCloseTo(0.55, 1);
     expect(n.yagmur / 4000).toBeCloseTo(0.3, 1);
     expect(n.firtina / 4000).toBeCloseTo(0.15, 1);
+  });
+});
+
+describe('zıpkın ve dalış tüpü', () => {
+  it('başlangıçta zıpkın ve tüp yok; dalış yapılamaz, mod olta kalır', () => {
+    const p = defaultProfile();
+    expect(p.harpoon).toBe(false);
+    expect(canDive(p)).toBe(false);
+    expect(effectiveMode({ ...p, fishMode: 'zipkin' })).toBe('olta');
+  });
+
+  it('dalmak için hem zıpkın hem tüp gerekir', () => {
+    let p = defaultProfile();
+    p.money = 100000;
+    p = buyHarpoon(p)!;
+    expect(p.money).toBe(100000 - HARPOON.price);
+    expect(canDive(p)).toBe(false);
+    p = buyTank(p, 'mini')!;
+    expect(canDive(p)).toBe(true);
+    expect(effectiveMode({ ...p, fishMode: 'zipkin' })).toBe('zipkin');
+    expect(buyHarpoon(p)).toBeNull();
+  });
+
+  it('tüpler olta gibi sırayla alınır; para yetse bile kademe atlanamaz', () => {
+    const p = defaultProfile();
+    p.money = 1_000_000;
+    expect(canBuyTank(p, 'mini')).toBe(true);
+    expect(canBuyTank(p, 'derin')).toBe(false);
+    expect(buyTank(p, 'teknik')).toBeNull();
+    const mini = buyTank(p, 'mini')!;
+    expect(mini.money).toBe(1_000_000 - TANKS.mini.price);
+    expect(mini.tank).toBe('mini');
+    const orta = buyTank(mini, 'orta')!;
+    expect(orta.tank).toBe('orta');
+    expect(buyTank(orta, 'orta')).toBeNull();
+  });
+
+  it('paran yetmiyorsa alınamaz', () => {
+    const p = defaultProfile();
+    p.money = TANKS.mini.price - 1;
+    expect(buyTank(p, 'mini')).toBeNull();
+    expect(buyHarpoon(p)).toBeNull();
   });
 });

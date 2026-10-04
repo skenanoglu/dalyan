@@ -24,12 +24,12 @@ export async function runGame(app: App): Promise<void> {
 
 export async function runTrip(app: App, choice: HarborOut, weather: WeatherId): Promise<TripSummary> {
   const seed = randomSeed();
-  const { rod, line, hook, boat, fishSeconds } = app.profile;
+  const { rod, line, hook, boat, fishSeconds, tank } = app.profile;
   const baitSlots = activeBaitSlots(app.profile);
   const out = await app.show(
     fishingScene,
-    { zone: choice.zone, rod, baitSlots, line, hook, boat, duration: fishSeconds, weather, night: choice.night, seed },
-    `Olta · ${ZONES[choice.zone].name}`,
+    { zone: choice.zone, rod, baitSlots, line, hook, boat, mode: choice.mode, tank, duration: fishSeconds, weather, night: choice.night, seed },
+    `${choice.mode === 'zipkin' ? 'Dalış' : 'Olta'} · ${ZONES[choice.zone].name}`,
   );
 
   const market = await app.show(marketScene, { catch: out.catch, zone: choice.zone }, 'Karaköy Balık Pazarı');

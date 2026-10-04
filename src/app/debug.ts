@@ -29,7 +29,7 @@ const resultScene: SceneFactory<{ name: string; out: unknown }, void> = (root, i
 
 /**
  * `?sahne=liman|olta|pazar` ile tek bir sahneyi açar.
- * Ek parametreler: bolge, seed, hava=gunes|yagmur|firtina, gece=1, kova=hamsi:8,lufer:3
+ * Ek parametreler: bolge, seed, hava=gunes|yagmur|firtina, gece=1, kova=hamsi:8,lufer:3, mod=zipkin (olta sahnesinde dalış)
  */
 export function startDebugScene(app: App, params: URLSearchParams): boolean {
   const name = params.get('sahne');
@@ -54,6 +54,8 @@ export function startDebugScene(app: App, params: URLSearchParams): boolean {
           line: app.profile.line,
           hook: app.profile.hook,
           boat: app.profile.boat,
+          mode: params.get('mod') === 'zipkin' ? 'zipkin' : 'olta',
+          tank: app.profile.tank,
           duration: app.profile.fishSeconds,
           weather,
           night,

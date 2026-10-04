@@ -1,29 +1,35 @@
 import { deferred, onAction, type SceneFactory } from '../../app/scene';
-import type { BaitId, BoatId, HarborIn, HarborOut, HookId, LineId, RodId, TripSummary, WeatherId, ZoneId } from '../../app/types';
+import type { BaitId, BoatId, FishMode, HarborIn, HarborOut, HookId, LineId, RodId, TankId, TripSummary, WeatherId, ZoneId } from '../../app/types';
 import type { Profile } from '../../app/save';
 import { FISH_SECONDS_OPTIONS } from '../../app/save';
 import { authErrorMessage, firebaseReady, signIn, signInWithGoogle, signOutUser, signUp, type User } from '../../app/cloud';
 import { ZONES, ZONE_ORDER } from '../../app/zones';
 import { SPECIES, SPECIES_ORDER } from '../../app/species';
-import { BAITS, BAIT_ORDER, BOATS, BOAT_ORDER, HOOKS, HOOK_ORDER, LINES, LINE_ORDER, RODS, ROD_ORDER } from '../../app/gear';
+import { BAITS, BAIT_ORDER, BOATS, BOAT_ORDER, HARPOON, HOOKS, HOOK_ORDER, LINES, LINE_ORDER, RODS, ROD_ORDER, TANKS, TANK_ORDER } from '../../app/gear';
 import { NIGHT, WEATHER } from '../../app/weather';
 import { ACHIEVEMENTS, ACHIEVEMENT_ORDER } from '../../app/achievements';
 import { REFERRAL_SHARE_BONUS, REFERRAL_WELCOME_BONUS, claimShareBonus } from '../../app/referral';
 import {
   buyBait,
   buyBoat,
+  buyHarpoon,
   buyHook,
   buyHookSlot,
   buyLine,
   buyRod,
+  buyTank,
   buyZone,
   canBuyBait,
   canBuyBoat,
+  canBuyHarpoon,
   canBuyHook,
   canBuyHookSlot,
   canBuyLine,
   canBuyRod,
+  canBuyTank,
   canBuyZone,
+  canDive,
+  effectiveMode,
   nextHookSlotPrice,
   rodHookCapacity,
   setBaitSlot,
@@ -185,6 +191,18 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
       case 'use-boat':
         if (p.boats[arg as BoatId]) commit({ ...p, boat: arg as BoatId });
         break;
+      case 'use-tank':
+        if (p.tanks[arg as TankId]) commit({ ...p, tank: arg as TankId });
+        break;
+      case 'mode':
+        if (arg === 'olta' || canDive(p)) commit({ ...p, fishMode: arg as FishMode });
+        break;
+      case 'buy-harpoon':
+        commit(buyHarpoon(p));
+        break;
+      case 'buy-tank':
+        commit(buyTank(p, arg as TankId));
+        break;
       case 'night':
         commit({ ...p, night: arg === '1' });
         break;
@@ -217,7 +235,7 @@ export const harborScene: SceneFactory<HarborIn, HarborOut> = (root, input, app)
         break;
       case 'play':
         finished = true;
-        resolve({ zone, night: app.profile.night });
+        resolve({ zone, night: app.profile.night, mode: effectiveMode(app.profile) });
         return;
       case 'close-banner':
         banner = null;
@@ -381,13 +399,24 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
   const durations = FISH_SECONDS_OPTIONS.map(
     (s) => `<button class="chip ${s === p.fishSeconds ? 'on' : ''}" data-act="duration" data-arg="${s}">${s} sn</button>`,
   ).join('');
-  const reach = Math.min(line.depth, z.depth);
-  const badges = [
-    { icon: rod.icon, text: rod.name },
-    { icon: line.icon, text: `${reach} m` },
-    { icon: hook.icon, text: hook.name },
-    { icon: boat.icon, text: `kova ${boat.capacity}` },
-  ]
+  const mode = effectiveMode(p);
+  const tank = TANKS[p.tank];
+  const reach = Math.min(mode === 'zipkin' ? tank.depth : line.depth, z.depth);
+  const badges = (
+    mode === 'zipkin'
+      ? [
+          { icon: HARPOON.icon, text: HARPOON.name },
+          { icon: tank.icon, text: tank.name },
+          { icon: '📏', text: `${reach} m` },
+          { icon: boat.icon, text: `kova ${boat.capacity}` },
+        ]
+      : [
+          { icon: rod.icon, text: rod.name },
+          { icon: line.icon, text: `${reach} m` },
+          { icon: hook.icon, text: hook.name },
+          { icon: boat.icon, text: `kova ${boat.capacity}` },
+        ]
+  )
     .map((b) => `<span class="gear-badge"><span class="emoji">${b.icon}</span>${b.text}</span>`)
     .join('');
 
@@ -398,6 +427,15 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
         <div><h3>Olta</h3><p>Tekneyle açıl. Küçük balıklar sığda, büyükler derinde.</p></div>
       </div>
       ${dailyView(p)}
+      <div class="row-label">Av şekli</div>
+      <div class="chips">
+        <button class="chip ${mode === 'olta' ? 'on' : ''}" data-act="mode" data-arg="olta">🎣 Olta</button>
+        ${
+          canDive(p)
+            ? `<button class="chip ${mode === 'zipkin' ? 'on' : ''}" data-act="mode" data-arg="zipkin">🤿 Zıpkın</button>`
+            : `<span class="chip locked">🔒 Zıpkın · ${p.harpoon ? 'tüp al' : 'zıpkın + tüp al'}</span>`
+        }
+      </div>
       <div class="row-label">Bölge</div>
       <div class="chips wrap">${zoneChips(p, zone)}</div>
       <div class="row-label">Zaman</div>
@@ -427,6 +465,9 @@ function donanimView(p: Profile, rodInfoOpen: boolean): string {
     .join('');
   const boats = BOAT_ORDER.filter((id) => p.boats[id])
     .map((id) => gearSelectCard(BOATS[id].icon, BOATS[id].name, `kova ${BOATS[id].capacity}`, id === p.boat, 'use-boat', id))
+    .join('');
+  const tanks = TANK_ORDER.filter((id) => p.tanks[id])
+    .map((id) => gearSelectCard(TANKS[id].icon, TANKS[id].name, `${TANKS[id].depth} m`, id === p.tank, 'use-tank', id))
     .join('');
   const slots = p.baitSlots
     .map((id, i) => {
@@ -468,6 +509,8 @@ function donanimView(p: Profile, rodInfoOpen: boolean): string {
     <div class="gear-grid">${hookTiers}</div>
     <div class="row-label">Tekne</div>
     <div class="gear-grid">${boats}</div>
+    <div class="row-label">Dalış tüpü</div>
+    ${tanks ? `<div class="gear-grid">${tanks}</div>` : '<p class="rig-note">Dükkândan zıpkın ve tüp al; sonra Oyna sekmesinden zıpkınla dalabilirsin.</p>'}
     <p class="rig-note">Bir yemi sürükleyip bir iğneye bırak; her iğne kendi yemiyle balık çeker. ${rod.name}: en fazla ${cap} iğne taşır.</p>
     <div class="rig-hooks">${slots}${addSlot}</div>
     <div class="row-label">Yemlerin</div>
@@ -537,6 +580,25 @@ function shopView(p: Profile): string {
     return shopCard(bt.icon, bt.name, `kova ${bt.capacity} balık`, action, owned);
   }).join('');
 
+  const harpoon = shopCard(
+    HARPOON.icon,
+    HARPOON.name,
+    HARPOON.desc,
+    p.harpoon
+      ? '<span class="maxed">Sende</span>'
+      : `<button class="btn buy" data-act="buy-harpoon" ${canBuyHarpoon(p) ? '' : 'disabled'}>${money(HARPOON.price)}</button>`,
+    p.harpoon,
+  );
+
+  const tanks = TANK_ORDER.map((id) => {
+    const t = TANKS[id];
+    const owned = Boolean(p.tanks[id]);
+    const action = owned
+      ? `<span class="maxed">${p.tank === id ? 'Takılı' : 'Sende'}</span>`
+      : `<button class="btn buy" data-act="buy-tank" data-arg="${id}" ${canBuyTank(p, id) ? '' : 'disabled'}>${money(t.price)}</button>`;
+    return shopCard(t.icon, t.name, `${t.depth} m · hız ${t.speed}${t.sharkReady ? ' · köpekbalığı zıpkınlanır' : ''}`, action, owned);
+  }).join('');
+
   const zones = ZONE_ORDER.slice(1)
     .map((id) => {
       const z = ZONES[id];
@@ -554,6 +616,8 @@ function shopView(p: Profile): string {
     <h4><span class="h4-icon">🪝</span>İğneler</h4><div class="gear-grid">${hooks}</div>
     <h4><span class="h4-icon">🪱</span>Yemler</h4><div class="gear-grid">${baits}</div>
     <h4><span class="h4-icon">🚤</span>Tekneler</h4><div class="gear-grid">${boats}</div>
+    <h4><span class="h4-icon">🏹</span>Zıpkın</h4><div class="gear-grid">${harpoon}</div>
+    <h4><span class="h4-icon">🤿</span>Dalış tüpleri</h4><div class="gear-grid">${tanks}</div>
     <h4><span class="h4-icon">🗺️</span>Bölgeler</h4><div class="gear-grid">${zones}</div>`;
 }
 

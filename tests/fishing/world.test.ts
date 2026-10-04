@@ -233,6 +233,163 @@ describe('av dünyası', () => {
   });
 });
 
+/** Zıpkınla dalış: dalgıç suya iner, tekne onu izler. */
+function dive(extra: Partial<WorldOptions> = {}): FishingWorld {
+  const w = empty({ diver: { depthM: 12, speed: 150, durability: 0 }, ...extra });
+  return w;
+}
+const fire: Input = { ...idle, fire: true };
+const swimDown: Input = { ...idle, down: true };
+
+describe('zıpkınla dalış', () => {
+  it('dalgıç tüpün derinliğinde durur ve olta çalışmaz', () => {
+    const w = dive();
+    expect(w.diving).toBe(true);
+    run(w, 8, swimDown);
+    expect(w.diver.y).toBeCloseTo(SURFACE + 12 * w.pxMetre, 0);
+    expect(w.hooks[0].y).toBe(HOOK_TOP);
+    expect(w.hookHasEntered).toBe(true);
+  });
+
+  it('dalgıç yön tuşlarıyla yüzer ve tekne onu izler', () => {
+    const w = dive();
+    const x0 = w.diver.x;
+    run(w, 1.5, { ...idle, right: true });
+    expect(w.diver.x).toBeGreaterThan(x0 + 80);
+    expect(w.diver.dir).toBe(1);
+    run(w, 3, { ...idle, left: true });
+    expect(w.diver.dir).toBe(-1);
+    expect(Math.abs(w.boat.x - w.diver.x)).toBeLessThan(200);
+  });
+
+  it('zıpkın bakılan yöndeki balığı vurur ve kovaya girer', () => {
+    const w = dive();
+    run(w, 1, swimDown);
+    putAt(w, 'levrek', w.diver.x + 90, w.diver.y);
+    w.update(STEP, fire);
+    expect(w.spears).toHaveLength(1);
+    run(w, 0.5);
+    expect(w.catch).toEqual({ levrek: 1 });
+    expect(w.events).toContain('spear');
+  });
+
+  it('zıpkının bekleme süresi var; sürekli basmak her karede atmaz', () => {
+    const w = dive();
+    run(w, 1, swimDown);
+    run(w, 0.3, fire);
+    expect(w.spears.length + w.fishes.length).toBeLessThanOrEqual(1);
+  });
+
+  it('zıpkın çöpe takılmaz; kova doluysa balık vurulmaz', () => {
+    const w = dive({ bucketCap: 1 });
+    run(w, 1, swimDown);
+    putAt(w, 'cizme', w.diver.x + 60, w.diver.y);
+    w.update(STEP, fire);
+    run(w, 0.5);
+    expect(w.catch).toEqual({});
+    w.diver.cool = 0;
+    putAt(w, 'hamsi', w.diver.x + 60, w.diver.y);
+    w.update(STEP, fire);
+    run(w, 0.5);
+    expect(w.catch).toEqual({ hamsi: 1 });
+    w.diver.cool = 0;
+    putAt(w, 'hamsi', w.diver.x + 60, w.diver.y);
+    w.update(STEP, fire);
+    run(w, 0.5);
+    expect(w.catch).toEqual({ hamsi: 1 });
+  });
+
+  it('köpekbalığı dalgıca çarparsa zaman ve sersemleme cezası; dayanıklı tüp cezayı azaltır', () => {
+    const w = dive();
+    run(w, 1, swimDown);
+    const before = w.timeLeft;
+    putAt(w, 'kopekbaligi', w.diver.x, w.diver.y);
+    w.update(STEP, idle);
+    expect(before - w.timeLeft).toBeCloseTo(5 + STEP, 3);
+    expect(w.diver.stun).toBeGreaterThan(0);
+
+    const strong = dive({ diver: { depthM: 12, speed: 150, durability: 3 } });
+    run(strong, 1, swimDown);
+    const b2 = strong.timeLeft;
+    putAt(strong, 'kopekbaligi', strong.diver.x, strong.diver.y);
+    strong.update(STEP, idle);
+    expect(b2 - strong.timeLeft).toBeCloseTo(2 + STEP, 3);
+  });
+
+  it('en iyi tüple köpekbalığı da zıpkınlanabilir', () => {
+    const w = dive({ sharkReady: true });
+    run(w, 1, swimDown);
+    putAt(w, 'kopekbaligi', w.diver.x + 80, w.diver.y);
+    w.update(STEP, fire);
+    run(w, 0.5);
+    expect(w.catch).toEqual({ kopekbaligi: 1 });
+  });
+});
+
+describe('martı, atılım ve çöp', () => {
+  it('avcı balıklar ara sıra hızlanır, diğerleri hızlanmaz', () => {
+    const w = empty();
+    putAt(w, 'palamut', 100, 400);
+    putAt(w, 'hamsi', 100, 450);
+    let dashed = false;
+    for (let i = 0; i < 1200; i++) {
+      w.update(STEP, idle);
+      for (const f of w.fishes) if (f.t.key === 'hamsi') expect(f.dash ?? 0).toBe(0);
+      if ((w.fishes.find((f) => f.t.key === 'palamut')?.dash ?? 0) > 0) dashed = true;
+      for (const f of w.fishes) if (f.x > 400 || f.x < 20) f.x = 100;
+    }
+    expect(dashed).toBe(true);
+  });
+
+  it('martı gelir, yüzeye yakın balığı kapıp gider', () => {
+    const w = empty({ random: () => 0.1 }); // sabit rastgelelik: dalış kararı kesin "evet"
+    w.gullTimer = 0;
+    w.update(STEP, idle);
+    expect(w.gulls).toHaveLength(1);
+    // yüzeyde bir balık hazır tut
+    putAt(w, 'hamsi', w.boat.x, SURFACE + 30);
+    const fish = w.fishes[w.fishes.length - 1];
+    fish.speed = 0;
+    let ate = false;
+    for (let i = 0; i < 60 * 12 && !ate; i++) {
+      w.update(STEP, idle);
+      fish.x = w.boat.x;
+      fish.baseY = SURFACE + 30;
+      fish.y = SURFACE + 30;
+      if (!w.fishes.includes(fish)) ate = true;
+    }
+    expect(ate).toBe(true);
+    expect(w.events).toContain('gull');
+  });
+
+  it('martı kancadaki balığı kapmaz', () => {
+    const w = empty();
+    run(w, 0.6, down);
+    putAtHook(w, 'hamsi');
+    w.update(STEP, idle);
+    const hooked = w.hook.fish!;
+    w.gullTimer = 0;
+    w.update(STEP, idle);
+    for (let i = 0; i < 60 * 8; i++) w.update(STEP, idle);
+    expect(w.catch.hamsi === 1 || w.fishes.includes(hooked)).toBe(true);
+  });
+
+  it('PET şişe sığda, nadir bir çöp olarak doğar', () => {
+    const w = make({ zone: 'kiyi', viewHeight: 900 });
+    let pets = 0;
+    let junk = 0;
+    for (let i = 0; i < 3000; i++) {
+      w.fishes = [];
+      w.spawnFish(true);
+      const f = w.fishes[0];
+      if (f?.t.junk) junk++;
+      if (f?.t.key === 'pet') pets++;
+    }
+    expect(pets).toBeGreaterThan(0);
+    expect(pets).toBeLessThan(junk / 2);
+  });
+});
+
 describe('hava ve gece', () => {
   it('fırtınada rüzgâr tekneyi sürükler; güneşte tekne yerinde durur', () => {
     const calm = empty();

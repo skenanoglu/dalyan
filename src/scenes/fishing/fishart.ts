@@ -34,6 +34,7 @@ function rr(g: Ctx, x: number, y: number, w: number, h: number, r: number): void
 /** Kovaya girebilen bir türü çizer (tehlikeler hariç). */
 export function drawCatchable(g: Ctx, t: FishType, pose: FishPose, ang: number, grads: GradientCache): void {
   if (t.naylon) drawNaylon(g, pose, ang);
+  else if (t.key === 'pet') drawPet(g, pose, ang);
   else if (t.junk) drawBoot(g, pose, ang);
   else drawFish(g, t, pose, ang, grads);
 }
@@ -205,6 +206,30 @@ export function drawBoot(g: Ctx, f: FishPose, ang: number): void {
   g.beginPath();
   g.moveTo(0, -18);
   g.quadraticCurveTo(6, -26, 2, -32);
+  g.stroke();
+}
+
+/** PET şişe: yatık yüzer, hafifçe sallanır. */
+export function drawPet(g: Ctx, f: FishPose, ang: number): void {
+  g.rotate(ang + 1.25 + Math.sin(f.phase * 1.3) * 0.18);
+  g.fillStyle = 'rgba(160,220,240,.75)';
+  rr(g, -9, -7, 18, 28, 6);
+  g.fill();
+  g.beginPath();
+  g.moveTo(-5, -7);
+  g.lineTo(-3.5, -15);
+  g.lineTo(3.5, -15);
+  g.lineTo(5, -7);
+  g.closePath();
+  g.fill();
+  g.fillStyle = '#2e86c1';
+  rr(g, -3.8, -19, 7.6, 5, 2);
+  g.fill();
+  g.fillStyle = 'rgba(255,255,255,.7)';
+  g.fillRect(-9, 3, 18, 6);
+  g.strokeStyle = 'rgba(255,255,255,.85)';
+  g.lineWidth = 1.5;
+  rr(g, -9, -7, 18, 28, 6);
   g.stroke();
 }
 

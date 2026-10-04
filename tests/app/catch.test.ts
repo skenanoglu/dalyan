@@ -30,7 +30,7 @@ describe('kova ve türler', () => {
     const reach = speciesInReach(12).map((s) => s.id);
     expect(reach).toContain('hamsi');
     expect(reach).not.toContain('kalkan');
-    expect(speciesInReach(110)).toHaveLength(15);
+    expect(speciesInReach(110)).toHaveLength(16);
   });
 });
 

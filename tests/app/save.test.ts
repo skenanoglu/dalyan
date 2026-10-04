@@ -70,6 +70,15 @@ describe('kayıt', () => {
     expect(parseProfile(JSON.stringify(p))).toEqual(p);
   });
 
+  it('zıpkın modu yalnızca zıpkın ve sahip olunan tüp varsa geçerlidir', () => {
+    expect(parseProfile(JSON.stringify({ fishMode: 'zipkin' })).fishMode).toBe('olta');
+    expect(parseProfile(JSON.stringify({ fishMode: 'zipkin', harpoon: true })).fishMode).toBe('olta');
+    const ok = parseProfile(JSON.stringify({ fishMode: 'zipkin', harpoon: true, tanks: { orta: true }, tank: 'derin' }));
+    // sahip olunmayan tüp seçilemez; sahip olunan ilk tüpe düşer
+    expect(ok.tank).toBe('orta');
+    expect(ok.fishMode).toBe('zipkin');
+  });
+
   it('geçersiz başarım kimlikleri ve bozuk tarihler atılır', () => {
     const p = parseProfile(
       JSON.stringify({ achievements: { 'ilk-av': { unlockedAt: 123 }, uydurma: { unlockedAt: 999 }, zengin: { unlockedAt: 'x' } } }),

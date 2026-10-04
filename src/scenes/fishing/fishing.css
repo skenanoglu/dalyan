@@ -109,6 +109,8 @@
   user-select: none;
 }
 .f-btn.on { background: rgba(255, 210, 63, 0.85); color: #123; }
+.f-btn-fire { border-color: rgba(255, 120, 90, 0.9); font-size: 28px; }
+.f-group[hidden] { display: none; }
 
 /* ---------- Paneller ---------- */
 .f-overlay {

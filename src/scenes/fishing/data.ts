@@ -24,6 +24,15 @@ export interface FishType {
   joker: boolean;
   rare: boolean;
   hazard?: 'jelly' | 'shark';
+  /** Avcı balıklar ara sıra kısa süre hızlanır. */
+  dash?: Dash;
+}
+
+/** rate: saniyedeki atılım olasılığı, dur: atılım süresi (sn), mult: hız çarpanı. */
+export interface Dash {
+  rate: number;
+  dur: number;
+  mult: number;
 }
 
 interface Body {
@@ -32,6 +41,7 @@ interface Body {
   speed: [number, number];
   reel: number;
   mark?: Mark;
+  dash?: Dash;
 }
 
 // Boy, hız ve çekiş Balık Avı'nın TYPES tablosundan (BalikAvi/js/veri.js).
@@ -41,17 +51,18 @@ const BODY: Record<SpeciesId, Body> = {
   istavrit: { len: 40, h: 14, speed: [110, 150], reel: 0.95, mark: 'line' },
   cipura: { len: 50, h: 28, speed: [70, 100], reel: 0.85, mark: 'band' },
   palyaco: { len: 38, h: 20, speed: [60, 90], reel: 0.9, mark: 'stripes' },
-  levrek: { len: 66, h: 22, speed: [80, 115], reel: 0.7, mark: 'line' },
+  levrek: { len: 66, h: 22, speed: [80, 115], reel: 0.7, mark: 'line', dash: { rate: 0.25, dur: 0.7, mult: 1.8 } },
   altin: { len: 40, h: 21, speed: [180, 230], reel: 0.8, mark: 'shine' },
-  lufer: { len: 58, h: 24, speed: [100, 140], reel: 0.75, mark: 'line' },
+  lufer: { len: 58, h: 24, speed: [100, 140], reel: 0.75, mark: 'line', dash: { rate: 0.3, dur: 0.8, mult: 2 } },
   mezgit: { len: 52, h: 20, speed: [70, 100], reel: 0.8, mark: 'line' },
-  palamut: { len: 70, h: 26, speed: [130, 175], reel: 0.65, mark: 'line' },
+  palamut: { len: 70, h: 26, speed: [130, 175], reel: 0.65, mark: 'line', dash: { rate: 0.35, dur: 0.8, mult: 2.1 } },
   kalkan: { len: 74, h: 40, speed: [45, 70], reel: 0.55, mark: 'benek' },
-  kilic: { len: 96, h: 26, speed: [160, 210], reel: 0.5, mark: 'kilic' },
+  kilic: { len: 96, h: 26, speed: [160, 210], reel: 0.5, mark: 'kilic', dash: { rate: 0.4, dur: 0.9, mult: 2.2 } },
   fener: { len: 62, h: 42, speed: [40, 65], reel: 0.45, mark: 'fener' },
   cizme: { len: 32, h: 36, speed: [25, 40], reel: 0.8 },
   naylon: { len: 38, h: 34, speed: [18, 34], reel: 0.85 },
-  kopekbaligi: { len: 150, h: 46, speed: [140, 180], reel: 0.35 },
+  pet: { len: 22, h: 44, speed: [14, 28], reel: 0.85 },
+  kopekbaligi: { len: 150, h: 46, speed: [140, 180], reel: 0.35, dash: { rate: 0.25, dur: 0.7, mult: 1.7 } },
 };
 
 const fromSpecies = (id: SpeciesId): FishType => {
@@ -71,6 +82,7 @@ const fromSpecies = (id: SpeciesId): FishType => {
     belly: s.belly,
     fin: s.fin,
     mark: b.mark,
+    dash: b.dash,
     junk: s.junk,
     naylon: id === 'naylon',
     joker: s.joker,

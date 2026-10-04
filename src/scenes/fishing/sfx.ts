@@ -103,6 +103,13 @@ export class FishingSfx {
       case 'escape':
         this.tone(320, 0.3, 'sawtooth', 0.09, 110);
         break;
+      case 'spear':
+        this.tone(900, 0.14, 'triangle', 0.07, 260);
+        break;
+      case 'gull':
+        this.tone(1500, 0.12, 'triangle', 0.05, 1100);
+        this.tone(1400, 0.16, 'triangle', 0.05, 900, 0.14);
+        break;
       case 'zap':
         this.tone(900, 0.25, 'square', 0.06, 200);
         break;

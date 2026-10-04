@@ -11,6 +11,8 @@ const KEYBOARD: Record<string, Key> = {
   KeyW: 'up',
   ArrowDown: 'down',
   KeyS: 'down',
+  Space: 'fire',
+  KeyF: 'fire',
 };
 
 /**
@@ -19,7 +21,7 @@ const KEYBOARD: Record<string, Key> = {
  * olayı tuşu basılı bırakamaz.
  */
 export class Controls {
-  readonly input: Input = { left: false, right: false, up: false, down: false };
+  readonly input: Input = { left: false, right: false, up: false, down: false, fire: false };
   private keys = new Set<Key>();
   private touches = new Set<Key>();
   private mouse: Key | null = null;
@@ -89,12 +91,12 @@ export class Controls {
 
   private refresh(): void {
     let any = false;
-    for (const k of ['left', 'right', 'up', 'down'] as Key[]) {
+    for (const k of ['left', 'right', 'up', 'down', 'fire'] as Key[]) {
       const pressed = this.keys.has(k) || this.touches.has(k) || this.mouse === k;
       this.input[k] = pressed;
       any ||= pressed;
     }
-    this.pad.querySelectorAll<HTMLElement>('[data-key]').forEach((b) => b.classList.toggle('on', this.input[b.dataset.key as Key]));
+    this.pad.querySelectorAll<HTMLElement>('[data-key]').forEach((b) => b.classList.toggle('on', Boolean(this.input[b.dataset.key as Key])));
     if (any) this.onInput();
   }
 

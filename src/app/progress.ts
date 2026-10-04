@@ -1,8 +1,8 @@
-import type { BaitId, BoatId, Catch, HookId, LineId, MarketOut, RodId, SaleLine, SpeciesId, TripSummary, ZoneId } from './types';
+import type { BaitId, BoatId, Catch, FishMode, HookId, LineId, MarketOut, RodId, SaleLine, SpeciesId, TankId, TripSummary, ZoneId } from './types';
 import type { Profile } from './save';
 import { SPECIES, SPECIES_ORDER } from './species';
 import { ZONES, ZONE_ORDER } from './zones';
-import { BAITS, BAIT_ORDER, BOATS, BOAT_ORDER, HOOKS, HOOK_ORDER, HOOK_SLOT_PRICE, LINES, LINE_ORDER, MAX_HOOK_SLOTS, RODS, ROD_ORDER } from './gear';
+import { BAITS, BAIT_ORDER, BOATS, BOAT_ORDER, HARPOON, HOOKS, HOOK_ORDER, HOOK_SLOT_PRICE, LINES, LINE_ORDER, MAX_HOOK_SLOTS, RODS, ROD_ORDER, TANKS, TANK_ORDER } from './gear';
 import { catchCount } from './catch';
 import { checkAchievements } from './achievements';
 import { advanceDailyQuests } from './quests';
@@ -97,6 +97,35 @@ export function buyBoat(p: Profile, id: BoatId): Profile | null {
   next.boat = id;
   return next;
 }
+
+// ---------- Zıpkın ve dalış tüpü ----------
+
+export const canBuyHarpoon = (p: Profile): boolean => !p.harpoon && p.money >= HARPOON.price;
+export const canBuyTank = (p: Profile, id: TankId): boolean => !p.tanks[id] && prevTierOwned(p.tanks, TANK_ORDER, id) && p.money >= TANKS[id].price;
+
+export function buyHarpoon(p: Profile): Profile | null {
+  if (!canBuyHarpoon(p)) return null;
+  const next = structuredClone(p);
+  next.money -= HARPOON.price;
+  next.harpoon = true;
+  return next;
+}
+
+/** Tüpü alır ve hemen takar. */
+export function buyTank(p: Profile, id: TankId): Profile | null {
+  if (!canBuyTank(p, id)) return null;
+  const next = structuredClone(p);
+  next.money -= TANKS[id].price;
+  next.tanks[id] = true;
+  next.tank = id;
+  return next;
+}
+
+/** Zıpkınla dalabilmek için zıpkın ve seçili (sahip olunan) bir tüp gerekir. */
+export const canDive = (p: Profile): boolean => p.harpoon && p.tanks[p.tank];
+
+/** Seçili av şekli; dalmaya uygun değilse olta. */
+export const effectiveMode = (p: Profile): FishMode => (p.fishMode === 'zipkin' && canDive(p) ? 'zipkin' : 'olta');
 
 // ---------- Oltaya ikinci/üçüncü iğne ekleme ----------
 

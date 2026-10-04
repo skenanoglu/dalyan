@@ -49,6 +49,8 @@ const ROWS: Record<SpeciesId, Row> = {
   fener: ['Fener Balığı', 110, [70, 110], 0.9, '#f0abfc', '#3c3350', '#5b4f73', '#2a2439'],
   cizme: ['Eski Çizme', -25, [5, 25], 1.2, '#7b8794', '#5a4636', '#6b5543', '#3f3126', { junk: true }],
   naylon: ['Naylon Poşet', -45, [3, 60], 1.1, '#7b8794', '#d9e2e8', '#f2f6f8', '#b8c4cc', { junk: true }],
+  // Nadir görülen çöp: sığda yüzer.
+  pet: ['PET Şişe', -35, [0, 25], 0.35, '#7ec8e3', '#a8dff0', '#d6f2fb', '#5aa9c4', { junk: true }],
   // En güçlü olta + misinayla tutulabilir; aksi halde oltadaki balığı kapan ya da misinayı koparan bir tehlikedir (bkz. fishing/data.ts).
   kopekbaligi: ['Köpekbalığı', 800, [10, 60], 0.8, '#7f8c99', '#7f8c99', '#dfe6ea', '#5d6d7e', { joker: true }],
 };
@@ -68,6 +70,7 @@ export const SPECIES_ORDER: SpeciesId[] = [
   'fener',
   'cizme',
   'naylon',
+  'pet',
   'kopekbaligi',
 ];
 
