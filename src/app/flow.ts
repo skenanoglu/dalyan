@@ -4,6 +4,7 @@ import { ZONES } from './zones';
 import { activeBaitSlots, applyTrip } from './progress';
 import { randomSeed } from './rng';
 import { rollWeather } from './weather';
+import { ensureDaily } from './quests';
 import { harborScene } from '../scenes/harbor/scene';
 import { fishingScene } from '../scenes/fishing/scene';
 import { marketScene } from '../scenes/market/scene';
@@ -13,6 +14,8 @@ export async function runGame(app: App): Promise<void> {
   let lastTrip: TripSummary | undefined;
   let weather = rollWeather();
   for (;;) {
+    const rolled = ensureDaily(app.profile);
+    if (rolled !== app.profile) app.commit(rolled);
     const choice = await app.show(harborScene, { lastTrip, weather }, 'Karaköy Limanı');
     lastTrip = await runTrip(app, choice, weather);
     weather = rollWeather();

@@ -1,8 +1,9 @@
 import type { BaitId, BoatId, HookId, LineId, RodId, SpeciesId, ZoneId } from './types';
 import { ZONE_ORDER, isZoneId } from './zones';
-import { SPECIES_ORDER } from './species';
+import { SPECIES_ORDER, isSpeciesId } from './species';
 import { BAIT_ORDER, BOAT_ORDER, HOOK_ORDER, LINE_ORDER, MAX_HOOK_SLOTS, ROD_ORDER, isBaitId, isBoatId, isHookId, isLineId, isRodId } from './gear';
 import { ACHIEVEMENT_ORDER, type AchievementId } from './achievements';
+import { defaultDaily, type DailyQuestState, type DailyState } from './quests';
 
 export const SAVE_KEY = 'dalyan.profil';
 export const SAVE_VERSION = 5;
@@ -46,6 +47,7 @@ export interface Profile {
   settings: Settings;
   stats: { trips: number; totalMoney: number; totalFish: number };
   achievements: Partial<Record<AchievementId, { unlockedAt: number }>>;
+  daily: DailyState;
 }
 
 const flags = <K extends string>(all: K[], on: K[]): Record<K, boolean> =>
@@ -74,6 +76,7 @@ export function defaultProfile(): Profile {
     settings: { sound: true, haptics: true },
     stats: { trips: 0, totalMoney: 0, totalFish: 0 },
     achievements: {},
+    daily: defaultDaily(),
   };
 }
 
@@ -152,6 +155,27 @@ export function parseProfile(raw: string | null): Profile {
       const unlockedAt = isObj(entry) ? int(entry.unlockedAt) : null;
       if (unlockedAt) p.achievements[id] = { unlockedAt };
     }
+  }
+  if (isObj(data.daily) && typeof data.daily.date === 'string' && Array.isArray(data.daily.quests)) {
+    const quests = (data.daily.quests as unknown[])
+      .filter(isObj)
+      .map((q): DailyQuestState | null => {
+        if (q.kind !== 'species' && q.kind !== 'totalFish' && q.kind !== 'earnMoney') return null;
+        const target = int(q.target);
+        const reward = int(q.reward);
+        const progress = int(q.progress);
+        if (target === null || reward === null || progress === null) return null;
+        const speciesId = typeof q.speciesId === 'string' && isSpeciesId(q.speciesId) ? (q.speciesId as SpeciesId) : undefined;
+        if (q.kind === 'species' && !speciesId) return null;
+        return { kind: q.kind, speciesId, target, reward, progress: Math.min(progress, target), done: Boolean(q.done) };
+      })
+      .filter((q): q is DailyQuestState => q !== null);
+    p.daily = {
+      date: data.daily.date,
+      quests,
+      streak: int(data.daily.streak) ?? 0,
+      lastDate: typeof data.daily.lastDate === 'string' ? data.daily.lastDate : null,
+    };
   }
   return p;
 }

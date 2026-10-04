@@ -100,4 +100,6 @@ export interface TripSummary {
   newSpecies: SpeciesId[];
   /** Bu seferin sonunda açılan başarımlar (bkz. app/achievements.ts). */
   newAchievements: AchievementId[];
+  /** Bu seferde tamamlanan günlük görevlerden kazanılan ekstra ödül. */
+  questReward: number;
 }

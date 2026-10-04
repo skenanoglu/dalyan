@@ -279,6 +279,7 @@ function authFormView(state: AuthState): string {
 
 function bannerView(t: TripSummary): string {
   const fresh = t.newSpecies.length > 0 ? ` · Yeni tür: ${t.newSpecies.map((id) => SPECIES[id].name).join(', ')}` : '';
+  const questNote = t.questReward > 0 ? ` · 📋 +${money(t.questReward)} görev ödülü` : '';
   const badges = t.newAchievements
     .map((id) => ACHIEVEMENTS[id])
     .map((a) => `<span class="gear-badge"><span class="emoji">${a.icon}</span>${a.name}</span>`)
@@ -287,10 +288,37 @@ function bannerView(t: TripSummary): string {
     <div class="banner">
       <div>
         <b>🎣 +${money(t.earned)}</b>
-        <small>${ZONES[t.zone].name} · ${t.fish} balık${fresh}</small>
+        <small>${ZONES[t.zone].name} · ${t.fish} balık${fresh}${questNote}</small>
         ${badges ? `<div class="gear-summary banner-achievements"><small class="ach-label">🏆 Yeni başarım</small>${badges}</div>` : ''}
       </div>
       <button class="icon-btn" data-act="close-banner" aria-label="Kapat">✕</button>
+    </div>`;
+}
+
+function dailyView(p: Profile): string {
+  const questLine = (q: Profile['daily']['quests'][number]): string => {
+    const label =
+      q.kind === 'species' && q.speciesId
+        ? `${SPECIES[q.speciesId].name} tut`
+        : q.kind === 'totalFish'
+          ? 'Balık tut'
+          : 'Pazardan kazan';
+    const icon = q.kind === 'species' && q.speciesId ? '🎣' : q.kind === 'totalFish' ? '🐟' : '💰';
+    const progressStr = q.kind === 'earnMoney' ? `${money(q.progress)}/${money(q.target)}` : `${q.progress}/${q.target}`;
+    return `
+      <div class="quest ${q.done ? 'done' : ''}">
+        <span class="quest-icon">${q.done ? '✅' : icon}</span>
+        <span class="quest-body"><b>${label}</b><small>${progressStr}</small></span>
+        <span class="quest-reward">+${money(q.reward)}</span>
+      </div>`;
+  };
+  return `
+    <div class="daily-card">
+      <div class="daily-head">
+        <span>📋 Günlük Görevler</span>
+        <span class="streak">🔥 ${p.daily.streak} gün</span>
+      </div>
+      ${p.daily.quests.map(questLine).join('')}
     </div>`;
 }
 
@@ -340,6 +368,7 @@ function playView(p: Profile, zone: ZoneId, weatherId: WeatherId): string {
         <span class="mode-icon">🎣</span>
         <div><h3>Olta</h3><p>Tekneyle açıl. Küçük balıklar sığda, büyükler derinde.</p></div>
       </div>
+      ${dailyView(p)}
       <div class="row-label">Bölge</div>
       <div class="chips wrap">${zoneChips(p, zone)}</div>
       <div class="row-label">Zaman</div>
