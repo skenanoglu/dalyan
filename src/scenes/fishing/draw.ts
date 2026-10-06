@@ -474,10 +474,6 @@ export class FishingRenderer {
     }
     // Dalışta balıkçı suya indiği için teknede görünmez.
     if (!w.diving) {
-      // gövde (kazak); alt kısmı teknenin küpeştesinin arkasında kalır
-      g.fillStyle = '#285e9c';
-      rr(g, -24, -57, 24, 38, 9);
-      g.fill();
       g.fillStyle = '#f2c79b';
       circle(g, -12, -66, 12);
       g.fillStyle = 'rgba(230,120,100,.5)';
