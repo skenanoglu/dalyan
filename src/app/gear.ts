@@ -117,7 +117,7 @@ export const BOAT_ORDER: BoatId[] = ['sandal', 'kayik', 'motor', 'yat', 'gemi'];
 export const BAITS: Record<BaitId, Bait> = {
   ekmek: { id: 'ekmek', name: 'Ekmek', icon: '🍞', price: 0, desc: 'Hamsi ve istavrit bayılır', likes: ['hamsi', 'istavrit'] },
   solucan: { id: 'solucan', name: 'Solucan', icon: '🪱', price: 800, desc: 'Çipura, levrek, palyaço', likes: ['cipura', 'levrek', 'palyaco'] },
-  karides: { id: 'karides', name: 'Karides', icon: '🦐', price: 3200, desc: 'Lüfer, mezgit, palamut', likes: ['lufer', 'mezgit', 'palamut'] },
+  karides: { id: 'karides', name: 'Karides', icon: '🦐', price: 3200, desc: 'Lüfer, mezgit, palamut, kalamar, ahtapot', likes: ['lufer', 'mezgit', 'palamut', 'kalamar', 'ahtapot'] },
   sardalya: { id: 'sardalya', name: 'Sardalya', icon: '🐟', price: 9500, desc: 'Kalkan ve kılıç balığı', likes: ['kalkan', 'kilic'] },
   kalamar: { id: 'kalamar', name: 'Kalamar', icon: '🦑', price: 24000, desc: 'Fener balığı ve altın balık', likes: ['fener', 'altin'] },
 };

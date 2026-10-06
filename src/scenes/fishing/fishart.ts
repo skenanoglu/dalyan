@@ -36,7 +36,142 @@ export function drawCatchable(g: Ctx, t: FishType, pose: FishPose, ang: number, 
   if (t.naylon) drawNaylon(g, pose, ang);
   else if (t.key === 'pet') drawPet(g, pose, ang);
   else if (t.junk) drawBoot(g, pose, ang);
+  else if (t.mark === 'kalamar') drawSquid(g, t, pose, ang);
+  else if (t.mark === 'ahtapot') drawOctopus(g, t, pose, ang);
   else drawFish(g, t, pose, ang, grads);
+}
+
+/** Kalamar: başlık (manto) önde, yüzgeçler ucunda; kollar arkada dalgalanır. */
+export function drawSquid(g: Ctx, t: FishType, f: FishPose, ang: number): void {
+  const L = t.len;
+  const h = t.h;
+  g.rotate(ang);
+  if (f.dir < 0 && !f.caught) g.scale(-1, 1);
+  const sp = f.caught ? 18 : 7;
+
+  // Kollar: başın arkasından geriye doğru dalgalı çizgiler, ikisi daha uzun (av kolları).
+  g.strokeStyle = t.fin;
+  g.lineCap = 'round';
+  for (let i = 0; i < 8; i++) {
+    const off = (i / 7 - 0.5) * h * 0.7;
+    const long = i === 2 || i === 5;
+    const len = L * (long ? 0.62 : 0.4);
+    const w1 = Math.sin(f.phase * sp + i * 0.9) * h * 0.25;
+    const w2 = Math.sin(f.phase * sp + i * 0.9 + 1.6) * h * 0.3;
+    g.lineWidth = long ? 1.6 : 2.4;
+    g.beginPath();
+    g.moveTo(-L * 0.12, off * 0.6);
+    g.bezierCurveTo(-L * 0.12 - len * 0.4, off + w1, -L * 0.12 - len * 0.75, off + w2, -L * 0.12 - len, off * 1.2 + w2);
+    g.stroke();
+    if (long) {
+      g.fillStyle = t.fin;
+      g.beginPath();
+      g.ellipse(-L * 0.12 - len, off * 1.2 + w2, 3, 2, 0, 0, TAU);
+      g.fill();
+    }
+  }
+
+  // Yüzgeçler: mantonun ucunda iki yanda üçgen.
+  const flap = Math.sin(f.phase * sp * 0.8) * h * 0.12;
+  g.fillStyle = t.fin;
+  g.beginPath();
+  g.moveTo(L * 0.18, -h * 0.3);
+  g.lineTo(L * 0.42, -h * 0.85 - flap);
+  g.lineTo(L * 0.5, -h * 0.05);
+  g.lineTo(L * 0.42, h * 0.85 + flap);
+  g.lineTo(L * 0.18, h * 0.3);
+  g.closePath();
+  g.fill();
+
+  // Manto: sivri uçlu uzun gövde.
+  const grad = g.createLinearGradient(0, -h / 2, 0, h / 2);
+  grad.addColorStop(0, t.body);
+  grad.addColorStop(1, t.belly);
+  g.fillStyle = grad;
+  g.beginPath();
+  g.moveTo(L * 0.55, 0);
+  g.quadraticCurveTo(L * 0.3, -h * 0.55, -L * 0.05, -h * 0.45);
+  g.quadraticCurveTo(-L * 0.18, -h * 0.4, -L * 0.18, 0);
+  g.quadraticCurveTo(-L * 0.18, h * 0.4, -L * 0.05, h * 0.45);
+  g.quadraticCurveTo(L * 0.3, h * 0.55, L * 0.55, 0);
+  g.closePath();
+  g.fill();
+
+  // Renk değiştiren benekler.
+  g.fillStyle = 'rgba(150,50,80,.35)';
+  for (const [bx, by] of [
+    [0.05, -0.15],
+    [0.2, 0.12],
+    [0.32, -0.08],
+    [-0.06, 0.18],
+  ]) circle(g, L * bx, h * by, h * 0.08);
+
+  // Büyük göz: başın yanında.
+  const er = Math.max(2.8, h * 0.2);
+  g.fillStyle = '#fff';
+  circle(g, -L * 0.1, -h * 0.05, er);
+  g.fillStyle = '#111';
+  circle(g, -L * 0.11, -h * 0.05, er * 0.6);
+}
+
+/** Ahtapot: yuvarlak baş üstte-önde, sekiz kıvrık kol geriye ve aşağı salınır. */
+export function drawOctopus(g: Ctx, t: FishType, f: FishPose, ang: number): void {
+  const L = t.len;
+  const h = t.h;
+  g.rotate(ang);
+  if (f.dir < 0 && !f.caught) g.scale(-1, 1);
+  const sp = f.caught ? 14 : 4;
+
+  // Kollar: gövdenin altından çıkıp geriye kıvrılır; uçları içe döner.
+  g.lineCap = 'round';
+  for (let i = 0; i < 8; i++) {
+    const k = i / 7;
+    const sx = L * (0.15 - k * 0.3);
+    const sy = h * 0.05;
+    const sw = Math.sin(f.phase * sp + i * 0.8);
+    const ex = sx - L * (0.25 + k * 0.25);
+    const ey = h * (0.35 + 0.15 * Math.sin(i * 1.7)) + sw * h * 0.12;
+    g.strokeStyle = i % 2 ? t.fin : t.body;
+    g.lineWidth = Math.max(2.5, h * 0.11);
+    g.beginPath();
+    g.moveTo(sx, sy);
+    g.bezierCurveTo(sx - L * 0.05, sy + h * 0.25, ex + L * 0.1 + sw * 4, ey - h * 0.05, ex, ey);
+    g.quadraticCurveTo(ex - L * 0.06, ey - h * 0.06, ex - L * 0.03, ey - h * 0.14);
+    g.stroke();
+  }
+  // Vantuzlar.
+  g.fillStyle = t.belly;
+  for (let i = 0; i < 5; i++) circle(g, L * (0.05 - i * 0.1), h * (0.22 + (i % 2) * 0.05), 1.6);
+
+  // Baş (manto).
+  const grad = g.createLinearGradient(0, -h / 2, 0, h * 0.2);
+  grad.addColorStop(0, t.body);
+  grad.addColorStop(1, t.belly);
+  g.fillStyle = grad;
+  g.beginPath();
+  g.ellipse(L * 0.02, -h * 0.15, L * 0.3, h * 0.33, -0.35, 0, TAU);
+  g.fill();
+  g.beginPath();
+  g.ellipse(L * 0.12, h * 0.05, L * 0.22, h * 0.16, 0, 0, TAU);
+  g.fill();
+
+  // Benekler.
+  g.fillStyle = 'rgba(120,40,20,.35)';
+  for (const [bx, by, br] of [
+    [-0.12, -0.3, 0.06],
+    [0.02, -0.38, 0.05],
+    [0.1, -0.2, 0.07],
+    [-0.05, -0.12, 0.05],
+  ]) circle(g, L * bx, h * by, h * br);
+
+  // Gözler: başın önünde iki iri göz.
+  const er = Math.max(2.6, h * 0.1);
+  for (const ex of [L * 0.16, L * 0.27]) {
+    g.fillStyle = '#fff6e0';
+    circle(g, ex, -h * 0.02, er);
+    g.fillStyle = '#111';
+    g.fillRect(ex - er * 0.6, -h * 0.02 - er * 0.25, er * 1.2, er * 0.5);
+  }
 }
 
 export function drawFish(g: Ctx, t: FishType, f: FishPose, ang: number, grads: GradientCache): void {

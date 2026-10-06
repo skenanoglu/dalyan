@@ -98,8 +98,13 @@ export interface Bird { x: number; y: number; v: number; p: number }
 export interface Weed { x: number; h: number; c: string; w: number; p: number }
 export interface Rock { x: number; w: number; h: number; c: string }
 export interface Drop { x: number; y: number; v: number }
+/** Kalamarın püskürttüğü mürekkep bulutu: genişleyerek söner. */
+export interface Ink { x: number; y: number; vx: number; vy: number; r: number; grow: number; life: number; max: number }
 
-export type FishingEvent = 'start' | 'splash' | 'catch' | 'score' | 'rare' | 'gold' | 'bad' | 'zap' | 'tick' | 'thunder' | 'end' | 'escape' | 'spear' | 'gull';
+/** Tutulan kalamarın mürekkep püskürtme olasılığı. */
+export const INK_CHANCE = 0.4;
+
+export type FishingEvent = 'start' | 'splash' | 'catch' | 'score' | 'rare' | 'gold' | 'bad' | 'zap' | 'tick' | 'thunder' | 'end' | 'escape' | 'spear' | 'gull' | 'ink';
 
 /** Zıpkın: hızı (px/sn), menzil süresi (sn), bekleme süresi (sn). */
 const SPEAR_SPEED = 620;
@@ -211,6 +216,7 @@ export class FishingWorld {
   /** Şimşek parlaması (0-1). */
   flash = 0;
   drops: Drop[] = [];
+  inks: Ink[] = [];
 
   readonly catch: Catch = {};
   /** Ses ve titreşim için; sahne her karede boşaltır. */
@@ -700,6 +706,7 @@ export class FishingWorld {
             done = true;
             break;
           }
+          this.maybeInk(f, f.x, f.y);
           this.landOne(f, f.x, f.y);
           done = true;
           break;
@@ -707,6 +714,28 @@ export class FishingWorld {
       }
       if (done) this.spears.splice(i, 1);
     }
+  }
+
+  /** Tutulan kalamar bazen kaçarken arkasına mürekkep bulutu bırakır. */
+  private maybeInk(f: Fish, x: number, y: number): void {
+    if (f.t.key !== 'kalamar' || this.rnd() >= INK_CHANCE) return;
+    // kalamar başlık yönünde kaçar; mürekkep arkaya, kolların tarafına püskürür
+    const back = -f.dir;
+    for (let i = 0; i < 9; i++) {
+      const max = this.rand(1.4, 2.4);
+      this.inks.push({
+        x: x + back * this.rand(0, 18),
+        y: y + this.rand(-10, 10),
+        vx: back * this.rand(15, 55),
+        vy: this.rand(-20, 20),
+        r: this.rand(6, 12),
+        grow: this.rand(12, 24),
+        life: max,
+        max,
+      });
+    }
+    this.popup(x, y - 30, 'Mürekkep!', '#b8a6ff');
+    this.events.push('ink');
   }
 
   /** Dalgıca köpekbalığı ya da denizanası çarparsa sersemler / ceza yer. */
@@ -876,6 +905,7 @@ export class FishingWorld {
         free.fish = f;
         f.caught = true;
         this.events.push('catch');
+        this.maybeInk(f, free.x, free.y);
         for (let i = 0; i < 6; i++) {
           this.bubbles.push({ x: free.x + this.rand(-8, 8), y: free.y + this.rand(-4, 10), r: this.rand(2, 4), v: this.rand(40, 80), w: this.rand(0, 6) });
         }
@@ -980,6 +1010,16 @@ export class FishingWorld {
       p.y += p.vy * dt;
       p.life -= dt;
       if (p.life <= 0) this.particles.splice(i, 1);
+    }
+    for (let i = this.inks.length - 1; i >= 0; i--) {
+      const k = this.inks[i];
+      k.x += k.vx * dt;
+      k.y += k.vy * dt;
+      k.vx *= 1 - Math.min(1, dt * 2);
+      k.vy *= 1 - Math.min(1, dt * 2);
+      k.r += k.grow * dt;
+      k.life -= dt;
+      if (k.life <= 0) this.inks.splice(i, 1);
     }
     for (let i = this.popups.length - 1; i >= 0; i--) {
       const p = this.popups[i];

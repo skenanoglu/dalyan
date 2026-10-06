@@ -110,6 +110,10 @@ export class FishingSfx {
         this.tone(1500, 0.12, 'triangle', 0.05, 1100);
         this.tone(1400, 0.16, 'triangle', 0.05, 900, 0.14);
         break;
+      case 'ink':
+        // mürekkep püskürmesi: kısa, boğuk bir "fıss"
+        this.tone(320, 0.18, 'sine', 0.08, 120);
+        break;
       case 'zap':
         this.tone(900, 0.25, 'square', 0.06, 200);
         break;

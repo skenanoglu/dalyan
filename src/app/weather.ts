@@ -109,12 +109,12 @@ export function rollWeather(random: () => number = Math.random): WeatherId {
 export const NIGHT = {
   name: 'Gece',
   icon: '🌙',
-  desc: 'Karanlıkta sadece fenerin çevresi görünür; levrek, lüfer, kalkan ve fener balığı hareketlenir.',
+  desc: 'Karanlıkta sadece fenerin çevresi görünür; levrek, lüfer, kalkan, kalamar ve fener balığı hareketlenir.',
   darkness: 0.78,
   /** Oltanın ve teknenin feneri (px). */
   hookLight: 150,
   boatLight: 120,
-  likes: ['levrek', 'lufer', 'kalkan', 'fener'] as SpeciesId[],
+  likes: ['levrek', 'lufer', 'kalkan', 'kalamar', 'fener'] as SpeciesId[],
   dislikes: ['hamsi', 'palyaco', 'cipura'] as SpeciesId[],
   likeX: 1.7,
   dislikeX: 0.6,

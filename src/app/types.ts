@@ -18,7 +18,9 @@ export type SpeciesId =
   | 'cizme'
   | 'naylon'
   | 'pet'
-  | 'kopekbaligi';
+  | 'kopekbaligi'
+  | 'kalamar'
+  | 'ahtapot';
 
 /** Olta seferinin havası. */
 export type WeatherId = 'gunes' | 'yagmur' | 'firtina';

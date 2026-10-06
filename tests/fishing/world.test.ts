@@ -112,6 +112,32 @@ describe('av dünyası', () => {
     expect(beforeStrong - strong.timeLeft).toBeCloseTo(2 + STEP, 3);
   });
 
+  it('tutulan kalamar bazen mürekkep püskürtür; mürekkep zamanla söner', () => {
+    const inky = empty({ random: () => 0.1 });
+    run(inky, 0.6, down);
+    putAtHook(inky, 'kalamar');
+    inky.update(STEP, idle);
+    expect(inky.hook.fish?.t.key).toBe('kalamar');
+    expect(inky.inks.length).toBeGreaterThan(0);
+    expect(inky.events).toContain('ink');
+    run(inky, 3);
+    expect(inky.inks).toHaveLength(0);
+
+    const calm = empty({ random: () => 0.9 });
+    run(calm, 0.6, down);
+    putAtHook(calm, 'kalamar');
+    calm.update(STEP, idle);
+    expect(calm.hook.fish?.t.key).toBe('kalamar');
+    expect(calm.inks).toHaveLength(0);
+
+    // diğer türler mürekkep çıkarmaz
+    const fish = empty({ random: () => 0.1 });
+    run(fish, 0.6, down);
+    putAtHook(fish, 'hamsi');
+    fish.update(STEP, idle);
+    expect(fish.inks).toHaveLength(0);
+  });
+
   it('en güçlü olta ve misinayla köpekbalığı kaçırılmaz, kovaya girer', () => {
     const w = empty({ sharkReady: true });
     run(w, 0.6, down);

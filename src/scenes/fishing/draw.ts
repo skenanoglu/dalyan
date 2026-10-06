@@ -115,6 +115,7 @@ export class FishingRenderer {
     if (w.night) this.lantern(g, w);
     if (w.diving) this.diverFigure(g, w);
     else this.lineAndHook(g, w);
+    this.inks(g, w);
     this.flights(g, w);
     this.gulls(g, w);
     this.surfaceOverlay(g, w);
@@ -856,6 +857,19 @@ export class FishingRenderer {
       else g.lineTo(x, w.waveY(x));
     }
     g.stroke();
+  }
+
+  /** Kalamar mürekkebi: koyu mor-lacivert, yumuşak kenarlı bulutlar. */
+  private inks(g: Ctx, w: FishingWorld): void {
+    for (const k of w.inks) {
+      const a = clamp(k.life / k.max, 0, 1) * 0.75;
+      const grad = g.createRadialGradient(k.x, k.y, 0, k.x, k.y, k.r);
+      grad.addColorStop(0, `rgba(22,14,40,${a})`);
+      grad.addColorStop(0.6, `rgba(30,20,55,${a * 0.7})`);
+      grad.addColorStop(1, 'rgba(30,20,55,0)');
+      g.fillStyle = grad;
+      circle(g, k.x, k.y, k.r);
+    }
   }
 
   private effects(g: Ctx, w: FishingWorld): void {

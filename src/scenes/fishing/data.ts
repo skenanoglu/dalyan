@@ -1,7 +1,7 @@
 import type { SpeciesId, ZoneId } from '../../app/types';
 import { RARE_PRICE, SPECIES, SPECIES_ORDER } from '../../app/species';
 
-export type Mark = 'line' | 'band' | 'stripes' | 'shine' | 'benek' | 'kilic' | 'fener';
+export type Mark = 'line' | 'band' | 'stripes' | 'shine' | 'benek' | 'kilic' | 'fener' | 'kalamar' | 'ahtapot';
 
 /** Avda görünen bir canlı türü: pazardaki türler + tehlikeler. */
 export interface FishType {
@@ -63,6 +63,9 @@ const BODY: Record<SpeciesId, Body> = {
   naylon: { len: 38, h: 34, speed: [18, 34], reel: 0.85 },
   pet: { len: 22, h: 44, speed: [14, 28], reel: 0.85 },
   kopekbaligi: { len: 150, h: 46, speed: [140, 180], reel: 0.35, dash: { rate: 0.25, dur: 0.7, mult: 1.7 } },
+  // Kalamar mürekkep püskürtür gibi ani fışkırmalarla kaçar; ahtapot yavaş ama oltaya sıkı yapışır.
+  kalamar: { len: 58, h: 18, speed: [80, 115], reel: 0.75, mark: 'kalamar', dash: { rate: 0.45, dur: 0.5, mult: 2.4 } },
+  ahtapot: { len: 48, h: 42, speed: [35, 55], reel: 0.55, mark: 'ahtapot' },
 };
 
 const fromSpecies = (id: SpeciesId): FishType => {

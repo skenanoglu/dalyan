@@ -53,6 +53,9 @@ const ROWS: Record<SpeciesId, Row> = {
   pet: ['PET Şişe', -35, [0, 25], 0.35, '#7ec8e3', '#a8dff0', '#d6f2fb', '#5aa9c4', { junk: true }],
   // En güçlü olta + misinayla tutulabilir; aksi halde oltadaki balığı kapan ya da misinayı koparan bir tehlikedir (bkz. fishing/data.ts).
   kopekbaligi: ['Köpekbalığı', 800, [10, 60], 0.8, '#7f8c99', '#7f8c99', '#dfe6ea', '#5d6d7e', { joker: true }],
+  // Kafadanbacaklılar: kalamar sürüyle orta sularda dolaşır, ahtapot kayalık dipte ağır ağır süzülür.
+  kalamar: ['Kalamar', 20, [15, 45], 1.8, '#ff9fb7', '#e8a6b4', '#f7dde3', '#c9798d'],
+  ahtapot: ['Ahtapot', 28, [10, 35], 1.3, '#d9603b', '#b4573c', '#e0a083', '#8e3f2a'],
 };
 
 export const SPECIES_ORDER: SpeciesId[] = [
@@ -72,6 +75,8 @@ export const SPECIES_ORDER: SpeciesId[] = [
   'naylon',
   'pet',
   'kopekbaligi',
+  'kalamar',
+  'ahtapot',
 ];
 
 export const SPECIES = Object.fromEntries(
